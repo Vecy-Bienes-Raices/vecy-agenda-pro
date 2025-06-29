@@ -8,7 +8,7 @@ function WelcomeScreen({ onStart }) {
       <img
         src={portadImageUrl}
         alt="Portada de Vecy Agenda"
-        className="mx-auto max-w-md rounded-2xl shadow-xl mb-8"
+        className="w-full max-w-md mx-auto rounded-2xl shadow-xl mb-8"
       />
       <h1 className="text-4xl font-bold text-off-white mt-4">
         Vecy Agenda
