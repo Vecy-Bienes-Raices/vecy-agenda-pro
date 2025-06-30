@@ -26,8 +26,8 @@ function WelcomeScreen({ onStart }) {
             <span className="ml-2">Instrucciones:</span>
           </p>
           <ul className="list-disc list-inside pl-4 space-y-2">
-            <li><strong>Cliente directo:</strong> Autoriza, llena el formulario completo y envíalo.</li>
-            <li><strong>Agente:</strong> Autoriza, llena tus datos y los de tu cliente, firma y envía.</li>
+            <li><strong>Cliente directo:</strong> Autoriza, llena tus datos y envía.</li>
+            <li><strong>Agente:</strong> Autoriza, llena tus datos y los del cliente, firma y envía.</li>
           </ul>
           <p className="flex items-start">
             <span className="mt-1">✅</span>
@@ -35,7 +35,9 @@ function WelcomeScreen({ onStart }) {
           </p>
           <p className="flex items-start">
             <span className="mt-1">🤝</span>
-            <span className="ml-2"><strong>¡Gracias por confiar en nosotros!</strong></span>
+            <span className="ml-2">
+              <strong>¡Gracias por confiar en nosotros!</strong>
+            </span>
           </p>
         </div>
         
