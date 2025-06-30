@@ -23,11 +23,11 @@ function WelcomeScreen({ onStart }) {
         <div className="text-off-white/90 max-w-2xl mx-auto my-6 space-y-4 text-left">
           <p className="font-semibold text-lg flex items-center">
             <span>🔒</span>
-            <span className="ml-2">Transparencia y confianza ante todo:</span>
+            <span className="ml-2">Transparencia y confianza:</span>
           </p>
           <ul className="list-disc list-inside pl-4 space-y-2">
-            <li><strong>Si eres cliente directo:</strong> Llena el formulario completo, autoriza y envíalo.</li>
-            <li><strong>Si eres agente:</strong> Autoriza, ingresa tus datos, presenta a tu cliente, firma y envía.</li>
+            <li><strong>Cliente directo:</strong> Autoriza, llena el formulario completo y envíalo.</li>
+            <li><strong>Agente:</strong> Autoriza, ingresa tus datos, presenta a tu cliente, firma y envía.</li>
           </ul>
           <p className="flex items-start">
             <span className="mt-1">✅</span>
