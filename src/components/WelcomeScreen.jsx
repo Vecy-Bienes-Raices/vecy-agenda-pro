@@ -34,7 +34,7 @@ function WelcomeScreen({ onStart }) {
             <span className="ml-2">Por tu seguridad y la nuestra es clave ingresar datos reales para agilizar el permisos de ingreso.</span>
           </p>
           <ul className="list-disc list-inside pl-4 space-y-2">
-            <li><strong>¡Gracias por confiar en nosotros!</strong></li>
+            <strong>¡Gracias por confiar en nosotros!</strong>
           </ul>
         </div>
         
