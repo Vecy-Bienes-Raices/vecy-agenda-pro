@@ -14,7 +14,7 @@ function TermsOfService({ onBack }) {
       </div>
 
       <div className="space-y-8 text-base">
-        <p className="italic">Modificado por última vez: 10/febrero/2024</p>
+        <p className="italic">Modificado por última vez: 30/juni/2025</p>
         
         <p>Bienvenido a <strong>Vecy Bienes Raíces</strong>. Al acceder o utilizar nuestro sitio web y nuestro formulario de solicitud (en adelante, "el sitio"), aceptas y te comprometes a cumplir los siguientes términos y condiciones. Si no estás de acuerdo, por favor no utilices nuestros servicios.</p>
 

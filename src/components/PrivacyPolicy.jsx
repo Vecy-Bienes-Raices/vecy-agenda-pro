@@ -14,7 +14,7 @@ function PrivacyPolicy({ onBack }) {
       </div>
 
       <div className="space-y-6 text-base">
-        <p className="italic">Modificado por última vez: 11/abril/2023</p>
+        <p className="italic">Modificado por última vez: 30/junio/2025</p>
         
         <p>En <strong>Vecy Bienes Raíces</strong>, la confianza y la transparencia son el pilar de nuestra relación contigo. Nos comprometemos a proteger la privacidad de nuestros clientes y usuarios, utilizando la tecnología no solo para agilizar procesos, sino para hacerlo de una forma segura y consciente.</p>
 
