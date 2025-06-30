@@ -35,9 +35,7 @@ function WelcomeScreen({ onStart }) {
           </p>
         </div>
         
-        <p className="text-sm text-acero mb-8">
-          Al continuar, aceptas nuestra <a href="/politica-privacidad" target="_blank" className="font-semibold text-soft-gold hover:underline">Política de Privacidad</a> y nuestros <a href="/terminos-y-condiciones" target="_blank" className="font-semibold text-soft-gold hover:underline">Términos y Condiciones</a>.
-        </p>
+        
       </div>
       
       <button
