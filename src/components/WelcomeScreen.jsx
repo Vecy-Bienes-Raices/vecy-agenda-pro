@@ -14,7 +14,7 @@ function WelcomeScreen({ onStart }) {
         Vecy Agenda
       </h1>
       <p className="text-off-white/80 max-w-2xl mx-auto my-6"> {/* Texto con ligera transparencia */}
-        IMPORTANTE: Valoramos la transparencia y la confianza... (tu texto completo va aquí)
+        🔒 Transparencia y confianza ante todo: 1. Si eres cliente directo: Llena el formulario completo, autoriza y envíalo. 2. Si eres agente: Autoriza, ingresa tus datos, presenta a tu cliente, firma y envía. ✅ Es clave ingresar datos reales para agilizar los permisos de ingreso y garantizar un proceso seguro y eficiente. ¡Gracias por confiar en nosotros!
       </p>
       <p className="text-sm text-off-white/80 mb-8">
         Al continuar, aceptas nuestra <a href="/politica-privacidad" target="_blank" className="font-semibold text-soft-gold hover:underline">Política de Privacidad</a> y nuestros <a href="/terminos-y-condiciones" target="_blank" className="font-semibold text-soft-gold hover:underline">Términos y Condiciones</a>.
