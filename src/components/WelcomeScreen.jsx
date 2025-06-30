@@ -23,15 +23,16 @@ function WelcomeScreen({ onStart }) {
         <div className="text-off-white/90 max-w-2xl mx-auto my-6 space-y-4 text-left">
           <p className="font-semibold text-lg flex items-center">
             <span>🔒</span>
-            <span className="ml-2">Transparencia y confianza:</span>
+            <span className="ml-2">Instrucciones:</span>
           </p>
           <ul className="list-disc list-inside pl-4 space-y-2">
             <li><strong>Cliente directo:</strong> Autoriza, llena el formulario completo y envíalo.</li>
-            <li><strong>Agente:</strong> Autoriza, ingresa tus datos, presenta a tu cliente, firma y envía.</li>
+            <li><strong>Agente:</strong> Autoriza, llena tus datos y los de tu cliente, firma y envía.</li>
           </ul>
           <p className="flex items-start">
             <span className="mt-1">✅</span>
-            <span className="ml-2">Es clave ingresar datos reales para agilizar los permisos de ingreso y garantizar un proceso seguro y eficiente. ¡Gracias por confiar en nosotros!</span>
+            <span className="ml-2">Por tu seguridad y la nuestra es clave ingresar datos reales para agilizar el permisos de ingreso.¡Gracias por confiar en nosotros!</span>
+            <span className="ml-2">¡Gracias por confiar en nosotros!</span>
           </p>
         </div>
         
