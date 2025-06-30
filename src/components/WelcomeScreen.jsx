@@ -33,10 +33,10 @@ function WelcomeScreen({ onStart }) {
             <span className="mt-1">✅</span>
             <span className="ml-2">Por tu seguridad y la nuestra es clave ingresar datos reales para agilizar el permisos de ingreso.</span>
           </p>
-          <ul className="list-disc list-inside pl-4 space-y-2">
+          <p className="flex items-start">
             <span className="mt-1">🤝</span>
-            <strong>¡Gracias por confiar en nosotros!</strong>
-          </ul>
+            <span className="ml-2"><strong>¡Gracias por confiar en nosotros!</strong></span>
+          </p>
         </div>
         
         
