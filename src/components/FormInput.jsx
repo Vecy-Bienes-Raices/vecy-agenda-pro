@@ -1,6 +1,6 @@
 import React from 'react';
 
-// Ahora el componente acepta 'maxLength' y 'pattern'
+// Este componente ahora acepta 'maxLength' y 'pattern' para las validaciones.
 function FormInput({ label, id, adornment, placeholder, maxLength, pattern, ...props }) {
   return (
     <div>
@@ -16,10 +16,9 @@ function FormInput({ label, id, adornment, placeholder, maxLength, pattern, ...p
         <input
           id={id}
           placeholder={placeholder || ''}
-          maxLength={maxLength} // Aplicamos la longitud máxima
-          pattern={pattern}     // Aplicamos el patrón de validación
+          maxLength={maxLength}
+          pattern={pattern}
           {...props}
-          // Añadimos una clase para estilizar el placeholder y el padding condicional
           className={`w-full p-3 bg-white text-grafito border border-gray-300 rounded-lg focus:ring-2 focus:ring-soft-gold focus:border-soft-gold transition placeholder:text-gray-400 ${adornment ? 'pl-10' : ''}`}
         />
       </div>
