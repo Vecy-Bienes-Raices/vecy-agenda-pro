@@ -49,20 +49,22 @@ function AgendaForm({ onBack }) {
     const finalValue = typeof rawValue === 'string' ? rawValue.trimStart() : rawValue;
 
     setFormData(prev => {
-      const newState = { ...prev, [name]: finalValue };
+      let newState = { ...prev, [name]: finalValue };
 
-      // Lógica específica para el celular
+      // Lógica para forzar solo números en campos específicos
       if (name === 'solicitante_celular') {
+        // El valor que llega del input no tiene el prefijo, así que lo limpiamos de no-dígitos y lo agregamos
         newState[name] = `+57${finalValue.replace(/\D/g, '')}`;
+      } else if (name === 'solicitante_numero_documento' || name === 'interesado_documento') {
+        // Para otros campos numéricos, solo limpiamos los no-dígitos
+        newState[name] = finalValue.replace(/\D/g, '');
       }
 
-      // Si cambia el tipo de cliente, reseteamos los campos dependientes
       if (name === 'tipo_cliente') {
         newState.interesado_nombre = '';
         newState.interesado_tipo_documento = '';
         newState.interesado_documento = '';
       }
-
       return newState;
     });
   };
@@ -137,14 +139,14 @@ function AgendaForm({ onBack }) {
                   <option value="Cliente directo">Cliente directo</option>
                   <option value="Agente">Agente</option>
                 </FormSelect><FormInput onChange={handleChange} value={formData.solicitante_email} label="Correo Electrónico" id="solicitante_email" name="solicitante_email" type="email" placeholder="tucorreo@ejemplo.com" required />
-                <FormInput onChange={handleChange} value={formData.solicitante_celular.substring(3)} label="Celular" id="solicitante_celular" name="solicitante_celular" type="tel" required adornment="+57" placeholder="3001234567"/>
+                <FormInput onChange={handleChange} value={formData.solicitante_celular.substring(3)} label="Celular" id="solicitante_celular" name="solicitante_celular" type="tel" required adornment="+57" placeholder="3001234567" maxLength="10" pattern="[0-9]*" />
                 <FormSelect value={formData.solicitante_tipo_documento} label="Tipo de Documento" id="solicitante_tipo_documento" name="solicitante_tipo_documento" onChange={handleChange}>
                   <option value="" disabled>Selecciona...</option>
                   <option value="Cédula de ciudadanía">Cédula de ciudadanía</option>
                   <option value="Cédula de extranjería">Cédula de extranjería</option>
                   <option value="Pasaporte">Pasaporte</option>
                 </FormSelect>
-                <FormInput onChange={handleChange} value={formData.solicitante_numero_documento} label="Número de Documento" id="solicitante_numero_documento" name="solicitante_numero_documento" type="text" placeholder="Ej: 1234567890" required />
+                <FormInput onChange={handleChange} value={formData.solicitante_numero_documento} label="Número de Documento" id="solicitante_numero_documento" name="solicitante_numero_documento" type="text" placeholder="Ej: 1234567890" required maxLength="12" pattern="[0-9]*" />
               </div>
               </fieldset>
 
@@ -167,8 +169,8 @@ function AgendaForm({ onBack }) {
                 <FormInput value={formData.codigo_inmueble} onChange={handleChange} label="Código del Inmueble o Servicio" id="codigo_inmueble" name="codigo_inmueble" type="text" placeholder="Ej: K14C118" />
               </div>{showVisitDetails && (<div className="transition-all duration-500 ease-in-out mt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormInput onChange={handleChange} value={formData.fecha_cita || ''} label="Fecha y Hora de la Visita" id="fecha_cita" name="fecha_cita" type="datetime-local" />
-                <FormInput onChange={handleChange} value={formData.cantidad_personas} label="¿Cuántas personas ingresarán?" id="cantidad_personas" name="cantidad_personas" type="number" defaultValue="1" /></div>
+                <FormInput onChange={handleChange} value={formData.fecha_cita || ''} label="Fecha y Hora de la Visita" id="fecha_cita" name="fecha_cita" type="datetime-local" min={new Date().toISOString().slice(0, 16)} />
+                <FormInput onChange={handleChange} value={formData.cantidad_personas} label="¿Cuántas personas ingresarán?" id="cantidad_personas" name="cantidad_personas" type="number" defaultValue="1" min="1" /></div>
               </div>)}
               </fieldset>
 
@@ -193,7 +195,7 @@ function AgendaForm({ onBack }) {
                 <option value="RUT">RUT</option>
                 <option value="Registro Mercantil">Registro Mercantil</option></>)}
               </FormSelect>
-              <FormInput value={formData.interesado_documento} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Número de documento del cliente" : "Número de NIT/Registro"} id="interesado_documento" name="interesado_documento" type="text" placeholder="Ej: 800123456"/></div></fieldset>
+              <FormInput value={formData.interesado_documento} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Número de documento del cliente" : "Número de NIT/Registro"} id="interesado_documento" name="interesado_documento" type="text" placeholder="Ej: 800123456" maxLength="12" pattern="[0-9]*"/></div></fieldset>
               <fieldset className="border-t-2 border-soft-gold pt-6">
                 <legend className="text-xl font-semibold text-off-white px-2 -ml-2">4. Firma del Agente</legend>
                 <div className="mt-4">
