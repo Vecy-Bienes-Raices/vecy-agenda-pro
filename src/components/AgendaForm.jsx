@@ -33,11 +33,12 @@ function AgendaForm() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [formErrors, setFormErrors] = useState({}); // Para resaltar campos individuales
   const [consentGiven, setConsentGiven] = useState(false);
   const [formData, setFormData] = useState({
     solicitante_nombre: '', solicitante_perfil: '', solicitante_email: '', solicitante_celular: '',
     solicitante_tipo_documento: '', solicitante_numero_documento: '', // 2. Pequeño ajuste para un valor inicial más lógico
-    servicio_solicitado: '', opcion_negocio: '', codigo_inmueble: '', fecha_cita_bogota: null, cantidad_personas: '1',
+    servicio_solicitado: '', opcion_negocio: '', codigo_inmueble: '', fecha_cita_bogota: null, cantidad_personas: '',
     tipo_cliente: '', interesado_nombre: '', interesado_tipo_documento: '', interesado_documento: '',
     firma_virtual_base64: '', autorizacion: false, metodoFirma: 'virtual',
   });
@@ -102,6 +103,7 @@ function AgendaForm() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
+    setFormErrors({});
     
     // --- VALIDACIÓN DINÁMICA MEJORADA ---
     const fieldsToValidate = {
@@ -116,7 +118,7 @@ function AgendaForm() {
 
     if (formData.servicio_solicitado === 'Visitar un inmueble') {
       fieldsToValidate.fecha_cita_bogota = 'Fecha y Hora de la Visita';
-      fieldsToValidate.cantidad_personas = 'Número de personas';
+      fieldsToValidate.cantidad_personas = 'Cantidad de Personas';
     }
     if (formData.solicitante_perfil === 'Agente') {
       fieldsToValidate.tipo_cliente = 'Tipo de cliente';
@@ -125,24 +127,38 @@ function AgendaForm() {
       fieldsToValidate.interesado_documento = 'Número de documento del cliente';
     }
 
+    const newErrors = {};
+    let firstErrorMessage = '';
+
     for (const field in fieldsToValidate) {
       if (!formData[field] || (typeof formData[field] === 'string' && formData[field].trim() === '')) {
-        setError(`El campo "${fieldsToValidate[field]}" es obligatorio.`);
-        return;
-      }
-      // Validación específica para la cantidad de personas
-      if (field === 'cantidad_personas' && parseInt(formData[field], 10) < 1) {
-        setError('El campo "Número de personas" debe ser al menos 1.');
-        return;
+        newErrors[field] = true;
+        if (!firstErrorMessage) {
+          if (field === 'cantidad_personas') {
+            firstErrorMessage = "Selecciona una cantidad válida de personas entre 1 y 6.";
+          } else {
+            firstErrorMessage = `El campo "${fieldsToValidate[field]}" es obligatorio.`;
+          }
+        }
       }
     }
 
-    if (!/^\S+@\S+\.\S+$/.test(formData.solicitante_email)) {
-      setError('Por favor, ingresa un formato de correo electrónico válido.');
-      return;
+    if (formData.solicitante_email && !/^\S+@\S+\.\S+$/.test(formData.solicitante_email)) {
+      newErrors.solicitante_email = true;
+      if (!firstErrorMessage) {
+        firstErrorMessage = 'Por favor, ingresa un formato de correo electrónico válido.';
+      }
     }
+
     if (!formData.autorizacion) {
-      setError('Debes aceptar la cláusula de confidencialidad para continuar.');
+      if (!firstErrorMessage) {
+        firstErrorMessage = 'Debes aceptar la cláusula de confidencialidad para continuar.';
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setFormErrors(newErrors);
+      setError(firstErrorMessage || 'Por favor, completa todos los campos obligatorios resaltados.');
       return;
     }
 
@@ -154,7 +170,7 @@ function AgendaForm() {
       const payload = {
         ...formData,
         fecha_cita: formData.fecha_cita_bogota ? formData.fecha_cita_bogota.toISOString() : null, // Renombramos y formateamos la fecha
-        cantidad_personas: parseInt(formData.cantidad_personas, 10) || 1, // Aseguramos que sea un número
+        cantidad_personas: parseInt(formData.cantidad_personas, 10), // El valor ya está validado
       };
       // Eliminamos la clave original de la fecha para no enviarla duplicada a Supabase
       delete payload.fecha_cita_bogota;
@@ -223,6 +239,15 @@ function AgendaForm() {
         { value: 'NIT', label: 'NIT' }, { value: 'RUT', label: 'RUT' }, { value: 'Registro Mercantil', label: 'Registro Mercantil' },
       ];
 
+  const cantidadPersonasOptions = [
+    { value: '1', label: '1 persona' },
+    { value: '2', label: '2 personas' },
+    { value: '3', label: '3 personas' },
+    { value: '4', label: '4 personas' },
+    { value: '5', label: '5 personas' },
+    { value: '6', label: '6 personas' },
+  ];
+
   return (
     <form noValidate onSubmit={handleSubmit}>
       <div className="text-center mb-8"><img src={logoUrl} alt="Logo oficial de Vecy" className="mx-auto h-20 w-20 mb-4" /><h2 className="text-3xl font-bold text-off-white">Formulario de Solicitud</h2><Link to="/" className="text-soft-gold text-sm hover:underline mt-1 inline-block">← Volver a la portada</Link></div>
@@ -231,7 +256,7 @@ function AgendaForm() {
         {consentGiven && (
           <>
             <fieldset className="border-t-2 border-soft-gold pt-6 mb-10"><legend className="text-xl font-semibold text-off-white px-2 -ml-2">1. Tus Datos</legend><div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-              <FormInput onChange={handleChange} value={formData.solicitante_nombre} label="Nombre Completo" id="solicitante_nombre" name="solicitante_nombre" type="text" placeholder="Ej: Juan Pérez" required />
+              <FormInput onChange={handleChange} value={formData.solicitante_nombre} label="Nombre Completo" id="solicitante_nombre" name="solicitante_nombre" type="text" placeholder="Ej: Juan Pérez" required error={!!formErrors.solicitante_nombre} />
               <CustomSelect
                 label="Perfil"
                 name="solicitante_perfil"
@@ -239,9 +264,10 @@ function AgendaForm() {
                 onChange={handleChange}
                 options={perfilOptions}
                 placeholder="Selecciona tu perfil..."
+                error={!!formErrors.solicitante_perfil}
               />
-              <FormInput onChange={handleChange} value={formData.solicitante_email} label="Correo Electrónico" id="solicitante_email" name="solicitante_email" type="email" placeholder="tucorreo@ejemplo.com" required />
-              <FormInput onChange={handleChange} value={formData.solicitante_celular.substring(3)} label="Celular" id="solicitante_celular" name="solicitante_celular" type="tel" placeholder="3001234567" required adornment="+57" maxLength="10" pattern="[0-9]*" />
+              <FormInput onChange={handleChange} value={formData.solicitante_email} label="Correo Electrónico" id="solicitante_email" name="solicitante_email" type="email" placeholder="tucorreo@ejemplo.com" required error={!!formErrors.solicitante_email} />
+              <FormInput onChange={handleChange} value={formData.solicitante_celular.substring(3)} label="Celular" id="solicitante_celular" name="solicitante_celular" type="tel" placeholder="3001234567" required adornment="+57" maxLength="10" pattern="[0-9]*" error={!!formErrors.solicitante_celular} />
               <CustomSelect
                 label="Tipo de Documento"
                 name="solicitante_tipo_documento"
@@ -249,20 +275,29 @@ function AgendaForm() {
                 onChange={handleChange}
                 options={tipoDocumentoOptions}
                 placeholder="Selecciona un documento..."
+                error={!!formErrors.solicitante_tipo_documento}
               />
-              <FormInput onChange={handleChange} value={formData.solicitante_numero_documento} label="Número de Documento" id="solicitante_numero_documento" name="solicitante_numero_documento" type={isPassport ? "text" : "tel"} pattern={isPassport ? ".*" : "[0-9]*"} placeholder="Ej: 1234567890" required maxLength="15" />
+              <FormInput onChange={handleChange} value={formData.solicitante_numero_documento} label="Número de Documento" id="solicitante_numero_documento" name="solicitante_numero_documento" type={isPassport ? "text" : "tel"} pattern={isPassport ? ".*" : "[0-9]*"} placeholder="Ej: 1234567890" required maxLength="15" error={!!formErrors.solicitante_numero_documento} />
             </div></fieldset>
             
             <fieldset className="border-t-2 border-soft-gold pt-6 mb-10"><legend className="text-xl font-semibold text-off-white px-2 -ml-2">2. Detalles de la Solicitud</legend><div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-              <CustomSelect label="¿Qué servicio necesitas?" name="servicio_solicitado" value={formData.servicio_solicitado} onChange={handleChange} options={servicioOptions} placeholder="Selecciona un servicio..." />
-              {showBusinessOption && (<CustomSelect label="Opción de Negocio" name="opcion_negocio" value={formData.opcion_negocio} onChange={handleChange} options={negocioOptions} placeholder="Selecciona..." />)}
+              <CustomSelect label="¿Qué servicio necesitas?" name="servicio_solicitado" value={formData.servicio_solicitado} onChange={handleChange} options={servicioOptions} placeholder="Selecciona un servicio..." error={!!formErrors.servicio_solicitado} />
+              {showBusinessOption && (<CustomSelect label="Opción de Negocio" name="opcion_negocio" value={formData.opcion_negocio} onChange={handleChange} options={negocioOptions} placeholder="Selecciona..." error={!!formErrors.opcion_negocio} />)}
               <FormInput value={formData.codigo_inmueble} onChange={handleChange} label="Código del Inmueble o Servicio" id="codigo_inmueble" name="codigo_inmueble" type="text" placeholder="Ej: 110AB" />
             </div>
             {showVisitDetails && (
               <div className="transition-all duration-500 ease-in-out mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <CustomDateTimePicker label="Fecha y Hora de la Visita" selected={formData.fecha_cita_bogota} onChange={handleDateChange} />
-                  <FormInput onChange={handleChange} value={formData.cantidad_personas} label="¿Cuántas personas ingresarán?" id="cantidad_personas" name="cantidad_personas" type="number" min="1" placeholder="Ej: 3" required />
+                  <CustomDateTimePicker label="Fecha y Hora de la Visita" selected={formData.fecha_cita_bogota} onChange={handleDateChange} error={!!formErrors.fecha_cita_bogota} />
+                  <CustomSelect
+                    label="¿Cuántas personas ingresarán?"
+                    name="cantidad_personas"
+                    value={formData.cantidad_personas}
+                    onChange={handleChange}
+                    options={cantidadPersonasOptions}
+                    placeholder="Selecciona una cantidad..."
+                    error={!!formErrors.cantidad_personas}
+                  />
                 </div>
               </div>
             )}
@@ -279,8 +314,9 @@ function AgendaForm() {
                     onChange={handleChange}
                     options={tipoClienteOptions}
                     placeholder="Selecciona..."
+                    error={!!formErrors.tipo_cliente}
                   />
-                  <FormInput value={formData.interesado_nombre} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Nombre completo del cliente" : "Razón Social de la Empresa"} id="interesado_nombre" name="interesado_nombre" type="text" placeholder="Nombre o Razón Social" />
+                  <FormInput value={formData.interesado_nombre} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Nombre completo del cliente" : "Razón Social de la Empresa"} id="interesado_nombre" name="interesado_nombre" type="text" placeholder="Nombre o Razón Social" error={!!formErrors.interesado_nombre} />
                   <CustomSelect
                     label={formData.tipo_cliente === 'Persona' ? "Tipo de documento del cliente" : "Tipo de identidad empresarial"}
                     name="interesado_tipo_documento"
@@ -288,6 +324,7 @@ function AgendaForm() {
                     onChange={handleChange}
                     options={tipoDocumentoClienteOptions}
                     placeholder="Selecciona..."
+                    error={!!formErrors.interesado_tipo_documento}
                   />
                   <FormInput
                     value={formData.interesado_documento}
@@ -299,6 +336,7 @@ function AgendaForm() {
                     pattern={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? '[0-9]*' : '.*'}
                     placeholder="Número"
                     maxLength="15"
+                    error={!!formErrors.interesado_documento}
                   />
                 </div>
               </fieldset>

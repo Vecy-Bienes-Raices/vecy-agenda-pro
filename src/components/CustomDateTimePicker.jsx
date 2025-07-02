@@ -170,23 +170,26 @@ const CustomDateTimePicker = ({ label, selected, onChange }) => {
             <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-2">
               {timeSlots.map(time => {
                 const isSelected = selectedTime === time;
-
-                // Lógica para deshabilitar horas pasadas en el día actual
-                const now = bogotaNow;
+                
                 const isToday = selectedDate &&
                   selectedDate.getFullYear() === todayInBogota.getFullYear() &&
                   selectedDate.getMonth() === todayInBogota.getMonth() &&
                   selectedDate.getDate() === todayInBogota.getDate();
 
-                let isPastTime = false;
+                let isTimeBlocked = false;
                 if (isToday) {
+                  // Calcula la hora mínima permitida (ahora + 4 horas)
+                  const minAllowedTime = new Date(bogotaNow.getTime() + 4 * 60 * 60 * 1000);
+                  
+                  // Crea un objeto Date para el horario actual en el día seleccionado
                   const [hour, minute] = time.split(':').map(Number);
-                  if (hour < now.getHours() || (hour === now.getHours() && minute < now.getMinutes())) {
-                    isPastTime = true;
-                  }
+                  const timeSlotDate = new Date(selectedDate);
+                  timeSlotDate.setHours(hour, minute, 0, 0);
+
+                  if (timeSlotDate < minAllowedTime) isTimeBlocked = true;
                 }
 
-                const isDisabled = disabledTimes.has(time) || isPastTime;
+                const isDisabled = disabledTimes.has(time) || isTimeBlocked;
 
                 let timeBtnClass = '';
                 if (isDisabled) {
