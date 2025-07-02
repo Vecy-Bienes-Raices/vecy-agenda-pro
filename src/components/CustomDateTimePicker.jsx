@@ -1,16 +1,32 @@
 import React, { useState, useEffect, useMemo } from 'react';
 
+// Helper to get the current time in Bogotá (UTC-5), which does not observe DST.
+const getBogotaNow = () => {
+  const now = new Date();
+  // Get the UTC time by adding the local timezone offset
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  // Subtract 5 hours for Bogotá time
+  return new Date(utc - (5 * 60 * 60000));
+};
+
 const CustomDateTimePicker = ({ label, selected, onChange }) => {
+  // --- TIMEZONE-AWARE STATE ---
+  // All "now" and "today" calculations are based on Bogotá time.
+  const [bogotaNow] = useState(getBogotaNow());
+  const [todayInBogota] = useState(() => {
+    const d = getBogotaNow();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+
   // Estado para la fecha que se está viendo en el calendario (mes/año)
-  const [viewDate, setViewDate] = useState(selected || new Date());
+  const [viewDate, setViewDate] = useState(selected || bogotaNow);
   // Estado para la fecha completa seleccionada (solo día, mes, año)
   const [selectedDate, setSelectedDate] = useState(selected ? new Date(selected.toDateString()) : null);
   // Estado para la hora seleccionada en formato "HH:mm"
   const [selectedTime, setSelectedTime] = useState(selected ? `${String(selected.getHours()).padStart(2, '0')}:${String(selected.getMinutes()).padStart(2, '0')}` : null);
   // Estado para almacenar los horarios deshabilitados
   const [disabledTimes, setDisabledTimes] = useState(new Set());
-  // Almacena el inicio del día de hoy para evitar seleccionar fechas pasadas.
-  const [today] = useState(new Date(new Date().setHours(0, 0, 0, 0)));
 
   // --- SIMULACIÓN DE CITAS AGENDADAS ---
   // En una aplicación real, estos datos vendrían de una API al seleccionar una fecha.
@@ -44,10 +60,12 @@ const CustomDateTimePicker = ({ label, selected, onChange }) => {
   // Cuando se selecciona una fecha y una hora, se notifica al formulario padre.
   useEffect(() => {
     if (selectedDate && selectedTime) {
-      const [hours, minutes] = selectedTime.split(':');
-      const finalDate = new Date(selectedDate);
-      finalDate.setHours(parseInt(hours, 10));
-      finalDate.setMinutes(parseInt(minutes, 10));
+      const [hour, minute] = selectedTime.split(':');
+      // Construct an ISO-like string with the Bogotá timezone offset (-05:00).
+      // This ensures the created Date object represents the exact moment in Bogotá time,
+      // regardless of the user's local timezone.
+      const dateString = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}T${hour}:${minute}:00-05:00`;
+      const finalDate = new Date(dateString);
       onChange(finalDate);
     } else {
       onChange(null); // Si la selección está incompleta, se envía null.
@@ -111,9 +129,16 @@ const CustomDateTimePicker = ({ label, selected, onChange }) => {
           {/* Días del mes */}
           {Array.from({ length: daysInMonth }).map((_, day) => {
             const dayNumber = day + 1;
-            const currentDate = new Date(year, month, dayNumber);
-            const isPast = currentDate < today;
-            const isSelected = selectedDate && selectedDate.getTime() === currentDate.getTime();
+            // We compare date parts to avoid timezone issues with the `<` operator.
+            const isPast =
+              year < todayInBogota.getFullYear() ||
+              (year === todayInBogota.getFullYear() && month < todayInBogota.getMonth()) ||
+              (year === todayInBogota.getFullYear() && month === todayInBogota.getMonth() && dayNumber < todayInBogota.getDate());
+
+            const isSelected = selectedDate &&
+              selectedDate.getDate() === dayNumber &&
+              selectedDate.getMonth() === month &&
+              selectedDate.getFullYear() === year;
 
             let dayClass = 'text-off-white/80 hover:bg-white/10';
             if (isPast) {
@@ -147,8 +172,12 @@ const CustomDateTimePicker = ({ label, selected, onChange }) => {
                 const isSelected = selectedTime === time;
 
                 // Lógica para deshabilitar horas pasadas en el día actual
-                const now = new Date();
-                const isToday = selectedDate && selectedDate.getTime() === today.getTime();
+                const now = bogotaNow;
+                const isToday = selectedDate &&
+                  selectedDate.getFullYear() === todayInBogota.getFullYear() &&
+                  selectedDate.getMonth() === todayInBogota.getMonth() &&
+                  selectedDate.getDate() === todayInBogota.getDate();
+
                 let isPastTime = false;
                 if (isToday) {
                   const [hour, minute] = time.split(':').map(Number);
