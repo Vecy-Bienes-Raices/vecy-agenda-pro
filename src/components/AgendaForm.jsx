@@ -36,7 +36,7 @@ function AgendaForm() {
   const [formData, setFormData] = useState({
     solicitante_nombre: '', solicitante_perfil: '', solicitante_email: '', solicitante_celular: '',
     solicitante_tipo_documento: '', solicitante_numero_documento: '',
-    servicio_solicitado: '', opcion_negocio: '', codigo_inmueble: '', fecha_cita: null, cantidad_personas: '0',
+    servicio_solicitado: '', opcion_negocio: '', codigo_inmueble: '', fecha_cita_bogota: null, cantidad_personas: '0',
     tipo_cliente: '', interesado_nombre: '', interesado_tipo_documento: '', interesado_documento: '',
     firma_virtual_base64: '', autorizacion: false, metodoFirma: 'virtual',
   });
@@ -92,7 +92,7 @@ function AgendaForm() {
 
   // Handler específico para el componente de fecha y hora personalizado
   const handleDateChange = (date) => {
-    setFormData(prev => ({ ...prev, fecha_cita: date }));
+    setFormData(prev => ({ ...prev, fecha_cita_bogota: date }));
   };
 
   const handleSignatureChange = (signatureData) => { setFormData(prevState => ({ ...prevState, firma_virtual_base64: signatureData })); };
@@ -114,7 +114,7 @@ function AgendaForm() {
     };
 
     if (formData.servicio_solicitado === 'Visitar un inmueble') {
-      fieldsToValidate.fecha_cita = 'Fecha y Hora de la Visita';
+      fieldsToValidate.fecha_cita_bogota = 'Fecha y Hora de la Visita';
       fieldsToValidate.cantidad_personas = 'Número de personas';
     }
     if (formData.solicitante_perfil === 'Agente') {
@@ -150,7 +150,7 @@ function AgendaForm() {
       // Formatear la fecha a un string estándar (ISO) antes de enviarla
       const dataToSend = {
         ...formData,
-        fecha_cita: formData.fecha_cita ? formData.fecha_cita.toISOString() : null,
+        fecha_cita_bogota: formData.fecha_cita_bogota ? formData.fecha_cita_bogota.toISOString() : null,
       };
 
       const response = await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dataToSend) });
@@ -258,7 +258,7 @@ function AgendaForm() {
             {showVisitDetails && (
               <div className="transition-all duration-500 ease-in-out mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <CustomDateTimePicker label="Fecha y Hora de la Visita" selected={formData.fecha_cita} onChange={handleDateChange} />
+                  <CustomDateTimePicker label="Fecha y Hora de la Visita" selected={formData.fecha_cita_bogota} onChange={handleDateChange} />
                   <FormInput onChange={handleChange} value={formData.cantidad_personas} label="¿Cuántas personas ingresarán?" id="cantidad_personas" name="cantidad_personas" type="number" min="1" placeholder="Ej: 3" required />
                 </div>
               </div>
