@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import FormInput from './FormInput';
 import SignaturePadComponent from './SignaturePad';
-import DateTimePicker from './DateTimePicker';
+import CustomDateTimePicker from './CustomDateTimePicker';
 import CustomSelect from './CustomSelect'; // Importamos el nuevo componente personalizado
 
 const logoUrl = '/Vecy_logo_oficial.png';
@@ -36,7 +36,7 @@ function AgendaForm({ onBack }) {
   const [formData, setFormData] = useState({
     solicitante_nombre: '', solicitante_perfil: '', solicitante_email: '', solicitante_celular: '',
     solicitante_tipo_documento: '', solicitante_numero_documento: '',
-    servicio_solicitado: '', opcion_negocio: '', codigo_inmueble: '', fecha_cita: '', cantidad_personas: '1',
+    servicio_solicitado: '', opcion_negocio: '', codigo_inmueble: '', fecha_cita: null, cantidad_personas: '0',
     tipo_cliente: '', interesado_nombre: '', interesado_tipo_documento: '', interesado_documento: '',
     firma_virtual_base64: '', autorizacion: false, metodoFirma: 'virtual',
   });
@@ -48,7 +48,7 @@ function AgendaForm({ onBack }) {
     // Usar la forma funcional de setState para garantizar el estado más reciente
     setFormData(prev => {
       let val = rawValue;
-      if (typeof val === 'string' && type !== 'datetime-local') {
+      if (typeof val === 'string') {
         val = val.trim();
       }
 
@@ -90,6 +90,11 @@ function AgendaForm({ onBack }) {
     });
   };
 
+  // Handler específico para el componente de fecha y hora personalizado
+  const handleDateChange = (date) => {
+    setFormData(prev => ({ ...prev, fecha_cita: date }));
+  };
+
   const handleSignatureChange = (signatureData) => { setFormData(prevState => ({ ...prevState, firma_virtual_base64: signatureData })); };
   const handleConsent = () => { setConsentGiven(true); };
 
@@ -110,6 +115,7 @@ function AgendaForm({ onBack }) {
 
     if (formData.servicio_solicitado === 'Visitar un inmueble') {
       fieldsToValidate.fecha_cita = 'Fecha y Hora de la Visita';
+      fieldsToValidate.cantidad_personas = 'Número de personas';
     }
     if (formData.solicitante_perfil === 'Agente') {
       fieldsToValidate.tipo_cliente = 'Tipo de cliente';
@@ -121,6 +127,11 @@ function AgendaForm({ onBack }) {
     for (const field in fieldsToValidate) {
       if (!formData[field] || (typeof formData[field] === 'string' && formData[field].trim() === '')) {
         setError(`El campo "${fieldsToValidate[field]}" es obligatorio.`);
+        return;
+      }
+      // Validación específica para la cantidad de personas
+      if (field === 'cantidad_personas' && parseInt(formData[field], 10) < 1) {
+        setError('El campo "Número de personas" debe ser al menos 1.');
         return;
       }
     }
@@ -136,12 +147,27 @@ function AgendaForm({ onBack }) {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
-      const result = await response.json();
-      if (!response.ok) { throw new Error(result.message || 'Hubo un problema al enviar la solicitud.'); }
+      // Formatear la fecha a un string estándar (ISO) antes de enviarla
+      const dataToSend = {
+        ...formData,
+        fecha_cita: formData.fecha_cita ? formData.fecha_cita.toISOString() : null,
+      };
+
+      const response = await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dataToSend) });
+
+      if (!response.ok) {
+        let errorMessage = `Error del servidor: ${response.status}`;
+        try {
+          const errorResult = await response.json();
+          errorMessage = errorResult.message || errorMessage;
+        } catch (e) { /* No hacer nada si el cuerpo del error no es JSON */ }
+        throw new Error(errorMessage);
+      }
+
       navigate(`/gracias?nombre=${encodeURIComponent(formData.solicitante_nombre)}&email=${encodeURIComponent(formData.solicitante_email)}`);
     } catch (error) {
-      setError(error.message);
+      console.error("Error detallado al enviar:", error);
+      setError(error.message || 'No se pudo completar la solicitud. Revisa tu conexión o inténtalo más tarde.');
     } finally {
       setIsSubmitting(false);
     }
@@ -232,8 +258,8 @@ function AgendaForm({ onBack }) {
             {showVisitDetails && (
               <div className="transition-all duration-500 ease-in-out mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <DateTimePicker label="Fecha y Hora de la Visita" value={formData.fecha_cita} onChange={handleChange} />
-                  <FormInput onChange={handleChange} value={formData.cantidad_personas} label="¿Cuántas personas ingresarán?" id="cantidad_personas" name="cantidad_personas" type="number" min="1" placeholder="Ej: 3" />
+                  <CustomDateTimePicker label="Fecha y Hora de la Visita" selected={formData.fecha_cita} onChange={handleDateChange} />
+                  <FormInput onChange={handleChange} value={formData.cantidad_personas} label="¿Cuántas personas ingresarán?" id="cantidad_personas" name="cantidad_personas" type="number" min="1" placeholder="Ej: 3" required />
                 </div>
               </div>
             )}
