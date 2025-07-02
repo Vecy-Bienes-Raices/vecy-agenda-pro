@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient'; // 1. Importamos el cliente de Supabase
 import FormInput from './FormInput';
 import SignaturePadComponent from './SignaturePad';
 import CustomDateTimePicker from './CustomDateTimePicker';
-import CustomSelect from './CustomSelect'; // Importamos el nuevo componente personalizado
+import CustomSelect from './CustomSelect';
 
 const logoUrl = '/Vecy_logo_oficial.png';
 
@@ -11,8 +12,8 @@ function Spinner() {
   return (<svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-volcanic-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>);
 }
 
-function AuthorizationCheckbox({ formData, handleChange, perfil }) {
-  const legendText = perfil === 'Agente' ? '5. Autorización Final' : '4. Autorización';
+function AuthorizationCheckbox({ formData, handleChange, isAgentView }) {
+  const legendText = isAgentView ? '5. Autorización Final' : '4. Autorización';
   return (
     <fieldset className="border-t-2 border-soft-gold pt-6">
       <legend className="text-xl font-semibold text-off-white px-2 -ml-2">{legendText}</legend>
@@ -35,8 +36,8 @@ function AgendaForm() {
   const [consentGiven, setConsentGiven] = useState(false);
   const [formData, setFormData] = useState({
     solicitante_nombre: '', solicitante_perfil: '', solicitante_email: '', solicitante_celular: '',
-    solicitante_tipo_documento: '', solicitante_numero_documento: '',
-    servicio_solicitado: '', opcion_negocio: '', codigo_inmueble: '', fecha_cita_bogota: null, cantidad_personas: '0',
+    solicitante_tipo_documento: '', solicitante_numero_documento: '', // 2. Pequeño ajuste para un valor inicial más lógico
+    servicio_solicitado: '', opcion_negocio: '', codigo_inmueble: '', fecha_cita_bogota: null, cantidad_personas: '1',
     tipo_cliente: '', interesado_nombre: '', interesado_tipo_documento: '', interesado_documento: '',
     firma_virtual_base64: '', autorizacion: false, metodoFirma: 'virtual',
   });
@@ -146,27 +147,29 @@ function AgendaForm() {
     }
 
     setIsSubmitting(true);
+    // 3. Reemplazamos la lógica de envío para usar Supabase
     try {
-      // Formatear la fecha a un string estándar (ISO) antes de enviarla
-      const dataToSend = {
+      // Construimos el payload para Supabase, asegurando que los nombres de las claves
+      // coincidan con las columnas de tu tabla 'solicitudes'.
+      const payload = {
         ...formData,
-        fecha_cita_bogota: formData.fecha_cita_bogota ? formData.fecha_cita_bogota.toISOString() : null,
+        fecha_cita: formData.fecha_cita_bogota ? formData.fecha_cita_bogota.toISOString() : null, // Renombramos y formateamos la fecha
+        cantidad_personas: parseInt(formData.cantidad_personas, 10) || 1, // Aseguramos que sea un número
       };
+      // Eliminamos la clave original de la fecha para no enviarla duplicada a Supabase
+      delete payload.fecha_cita_bogota;
 
-      const response = await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dataToSend) });
+      const { error: supabaseError } = await supabase.from('solicitudes').insert([payload]);
 
-      if (!response.ok) {
-        let errorMessage = `Error del servidor: ${response.status}`;
-        try {
-          const errorResult = await response.json();
-          errorMessage = errorResult.message || errorMessage;
-        } catch (e) { /* No hacer nada si el cuerpo del error no es JSON */ }
-        throw new Error(errorMessage);
+      if (supabaseError) {
+        // Si Supabase devuelve un error, lo lanzamos para que lo capture el bloque catch
+        throw supabaseError;
       }
 
+      // Si todo va bien, redirigimos a la página de gracias (conservando tu lógica original)
       navigate(`/gracias?nombre=${encodeURIComponent(formData.solicitante_nombre)}&email=${encodeURIComponent(formData.solicitante_email)}`);
     } catch (error) {
-      console.error("Error detallado al enviar:", error);
+      console.error("Error detallado al enviar a Supabase:", error);
       setError(error.message || 'No se pudo completar la solicitud. Revisa tu conexión o inténtalo más tarde.');
     } finally {
       setIsSubmitting(false);
@@ -301,7 +304,7 @@ function AgendaForm() {
               </fieldset>
               <fieldset className="border-t-2 border-soft-gold pt-6"><legend className="text-xl font-semibold text-off-white px-2 -ml-2">4. Firma del Agente</legend><div className="mt-4"><label className="block text-sm font-medium text-off-white/80">Elige el método de firma:</label><div className="mt-2 flex gap-6"><label className="flex items-center text-off-white/80"><input type="radio" name="metodoFirma" value="virtual" checked={formData.metodoFirma === 'virtual'} onChange={handleChange} className="mr-2 h-4 w-4 bg-transparent border-off-white/50 accent-esmeralda focus:ring-soft-gold" />Firma Virtual (Dibujar)</label><label className="flex items-center text-off-white/80"><input type="radio" name="metodoFirma" value="digital" checked={formData.metodoFirma === 'digital'} onChange={handleChange} className="mr-2 h-4 w-4 bg-transparent border-off-white/50 accent-esmeralda focus:ring-soft-gold" />Firma Digital (Subir archivo)</label></div>{formData.metodoFirma === 'virtual' && <div className="mt-4"><label className="block text-sm font-medium text-off-white/80 mb-2">Por favor, firma en el siguiente recuadro:</label><SignaturePadComponent onSignatureChange={handleSignatureChange} /></div>}{formData.metodoFirma === 'digital' && <div className="mt-4"><label htmlFor="firma_digital_upload" className="block text-sm font-medium text-off-white/80 mb-2">Sube el archivo de tu firma (PDF, PNG, JPG):</label><input type="file" id="firma_digital_upload" name="firma_digital_upload" className="w-full text-sm text-off-white/80 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-soft-gold/20 file:text-soft-gold hover:file:bg-soft-gold/30" /></div>}</div></fieldset>
             </>)}
-            <AuthorizationCheckbox formData={formData} handleChange={handleChange} perfil={formData.solicitante_perfil} />
+            <AuthorizationCheckbox formData={formData} handleChange={handleChange} isAgentView={showAgentSections} />
             <div className="mt-8"><button type="submit" disabled={isSubmitting} className="w-full bg-soft-gold/80 hover:bg-soft-gold text-volcanic-black font-bold py-4 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? <Spinner /> : null}{isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}</button></div>
             {error && (<div className="mt-4 text-center text-red-400 bg-red-900/50 p-3 rounded-lg">{error}</div>)}
           </>
