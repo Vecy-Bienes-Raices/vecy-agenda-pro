@@ -25,7 +25,7 @@ export default async function handler(req, res) {
 
     // --- PASO 3: INTENTAR INSERTAR LOS DATOS ---
     const { data, error } = await supabase
-      .from('solicitudes')
+      .from('solicitudes_con_hora_bogota')
       .insert([submissionData])
       .select();
 
