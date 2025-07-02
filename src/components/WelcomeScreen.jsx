@@ -1,8 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const portadImageUrl = '/Vecy_agenda1.png';
 
-function WelcomeScreen({ onStart }) {
+function WelcomeScreen() {
+  const navigate = useNavigate();
+
   return (
     <div className="text-center">
       
@@ -45,7 +48,7 @@ function WelcomeScreen({ onStart }) {
       </div>
       
       <button
-        onClick={onStart}
+        onClick={() => navigate('/formulario')}
         className="bg-soft-gold/80 hover:bg-soft-gold text-volcanic-black font-bold py-3 px-10 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold"
       >
         EMPECEMOS
