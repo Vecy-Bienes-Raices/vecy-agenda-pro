@@ -19,17 +19,24 @@ function DeclineScreen() {
           <Link to="/politica-privacidad" target="_blank" rel="noopener noreferrer" className="font-semibold text-soft-gold hover:underline">
             Política de Privacidad
           </Link>{' '}
-          y los{' '}
+          y nuestros{' '}
           <Link to="/terminos-y-condiciones" target="_blank" rel="noopener noreferrer" className="font-semibold text-soft-gold hover:underline">
             Términos y Condiciones
           </Link>.
         </p>
+        <p className="text-off-white/70 mt-4 text-base">
+          Si tienes dudas sobre el proceso o necesitas ayuda para completar el formulario, no dudes en contactarnos.
+        </p>
       </div>
 
-      <div className="mt-8">
-        <Link to="/" className="bg-soft-gold/80 hover:bg-soft-gold text-volcanic-black font-bold py-3 px-8 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold">
-          Recapacita
+      <div className="mt-8 flex flex-col sm:flex-row gap-4">
+        <Link to="/formulario" className="bg-soft-gold/80 hover:bg-soft-gold text-volcanic-black font-bold py-3 px-8 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold">
+          Volver y Aceptar
         </Link>
+        <a href="https://wa.link/55f26z" target="_blank" rel="noopener noreferrer" className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2">
+          <img src="/icono-whatsapp.png" alt="WhatsApp" className="h-6 w-6" />
+          Necesito Ayuda
+        </a>
       </div>
     </div>
   );
