@@ -6,6 +6,7 @@ import AgendaForm from './components/AgendaForm';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
 import GraciasScreen from './components/GraciasScreen'; // Importamos la pantalla de gracias
+import DeclineScreen from './components/DeclineScreen.jsx'; // CORRECCIÓN: Se añade la extensión .jsx para ser explícitos
 
 // Componente "Wrapper" que da el estilo de fondo a todas las páginas
 function Layout({ children }) {
@@ -29,6 +30,7 @@ function App() {
           <Route path="/politica-privacidad" element={<PrivacyPolicy />} />
           <Route path="/terminos-y-condiciones" element={<TermsOfService />} />
           <Route path="/gracias" element={<GraciasScreen />} />
+          <Route path="/declinado" element={<DeclineScreen />} />
         </Routes>
       </Layout>
     </Router>

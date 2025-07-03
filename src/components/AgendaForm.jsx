@@ -50,10 +50,6 @@ function AgendaForm() {
     // Usar la forma funcional de setState para garantizar el estado más reciente
     setFormData(prev => {
       let val = rawValue;
-      if (typeof val === 'string') {
-        val = val.trim();
-      }
-
       let newState = { ...prev, [name]: val };
 
       // Lógica de sanitización para campos numéricos
@@ -99,6 +95,11 @@ function AgendaForm() {
 
   const handleSignatureChange = (signatureData) => { setFormData(prevState => ({ ...prevState, firma_virtual_base64: signatureData })); };
   const handleConsent = () => { setConsentGiven(true); };
+
+  const handleDecline = () => {
+    // Redirige a la página de rechazo
+    navigate('/declinado');
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -175,6 +176,13 @@ function AgendaForm() {
       // Eliminamos la clave original de la fecha para no enviarla duplicada a Supabase
       delete payload.fecha_cita_bogota;
 
+      // Limpiamos los datos de texto justo antes de enviar para eliminar espacios extra
+      Object.keys(payload).forEach(key => {
+        if (typeof payload[key] === 'string') {
+          payload[key] = payload[key].trim();
+        }
+      });
+
       const { error: supabaseError } = await supabase.from('solicitudes').insert([payload]);
 
       if (supabaseError) {
@@ -182,8 +190,14 @@ function AgendaForm() {
         throw supabaseError;
       }
 
-      // Si todo va bien, redirigimos a la página de gracias (conservando tu lógica original)
-      navigate(`/gracias?nombre=${encodeURIComponent(formData.solicitante_nombre)}&email=${encodeURIComponent(formData.solicitante_email)}`);
+      // Si todo va bien, redirigimos a la página de gracias con más detalles
+      const params = new URLSearchParams({
+        nombre: formData.solicitante_nombre,
+        email: formData.solicitante_email,
+        servicio: formData.servicio_solicitado,
+        celular: formData.solicitante_celular,
+      });
+      navigate(`/gracias?${params.toString()}`);
     } catch (error) {
       console.error("Error detallado al enviar a Supabase:", error);
       setError(error.message || 'No se pudo completar la solicitud. Revisa tu conexión o inténtalo más tarde.');
@@ -251,7 +265,7 @@ function AgendaForm() {
   return (
     <form noValidate onSubmit={handleSubmit}>
       <div className="text-center mb-8"><img src={logoUrl} alt="Logo oficial de Vecy" className="mx-auto h-20 w-20 mb-4" /><h2 className="text-3xl font-bold text-off-white">Formulario de Solicitud</h2><Link to="/" className="text-soft-gold text-sm hover:underline mt-1 inline-block">← Volver a la portada</Link></div>
-      {!consentGiven && (<fieldset className="border-t-2 border-soft-gold pt-6 mb-10 transition-opacity duration-500"><legend className="text-xl font-semibold text-off-white px-2 -ml-2">Consentimiento de Datos</legend><p className="text-off-white/80 mt-2">Para continuar, es necesario tu consentimiento. Al hacer clic en "Sí, autorizo", confirmas que has leído y aceptas nuestra <Link to="/politica-privacidad" target="_blank" rel="noopener noreferrer" className="font-semibold text-soft-gold hover:underline">Política de Privacidad</Link> y nuestros <Link to="/terminos-y-condiciones" target="_blank" rel="noopener noreferrer" className="font-semibold text-soft-gold hover:underline">Términos y Condiciones</Link>.</p><div className="mt-6 flex gap-4"><button type="button" onClick={handleConsent} className="bg-esmeralda hover:bg-green-500 text-white font-bold py-2 px-6 rounded-lg transition-all">Sí, autorizo</button><button type="button" className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-lg transition-all">NO</button></div></fieldset>)}
+      {!consentGiven && (<fieldset className="border-t-2 border-soft-gold pt-6 mb-10 transition-opacity duration-500"><legend className="text-xl font-semibold text-off-white px-2 -ml-2">Consentimiento de Datos</legend><p className="text-off-white/80 mt-2">Para continuar, es necesario tu consentimiento. Al hacer clic en "Sí, autorizo", confirmas que has leído y aceptas nuestra <Link to="/politica-privacidad" target="_blank" rel="noopener noreferrer" className="font-semibold text-soft-gold hover:underline">Política de Privacidad</Link> y nuestros <Link to="/terminos-y-condiciones" target="_blank" rel="noopener noreferrer" className="font-semibold text-soft-gold hover:underline">Términos y Condiciones</Link>.</p><div className="mt-6 flex gap-4"><button type="button" onClick={handleConsent} className="bg-esmeralda hover:bg-green-500 text-white font-bold py-2 px-6 rounded-lg transition-all">Sí, autorizo</button><button type="button" onClick={handleDecline} className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-lg transition-all">NO</button></div></fieldset>)}
       <div className={`transition-opacity duration-700 ${consentGiven ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden pointer-events-none'}`}>
         {consentGiven && (
           <>

@@ -1,16 +1,17 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const logoUrl = '/Vecy_logo_oficial.png';
 
-function TermsOfService({ onBack }) {
+function TermsOfService() {
   return (
     <div className="text-left max-w-4xl mx-auto text-off-white/90">
       <div className="text-center mb-10">
         <img src={logoUrl} alt="Logo oficial de Vecy" className="mx-auto h-20 w-20 mb-4" />
         <h1 className="text-3xl font-bold text-off-white">Términos y Condiciones de Uso</h1>
-        <button type="button" onClick={onBack} className="text-soft-gold text-sm hover:underline mt-2">
+        <Link to="/formulario" className="text-soft-gold text-sm hover:underline mt-2 inline-block">
           ← Volver al formulario
-        </button>
+        </Link>
       </div>
 
       <div className="space-y-8 text-base">
