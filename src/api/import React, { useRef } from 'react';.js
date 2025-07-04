@@ -4,7 +4,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 const logoUrl = '/Vecy_logo_oficial.png';
-const firmaJaniUrl = '/Jani.1.png'; // IMPORTANTE: Coloca la imagen de la firma como 'Jani.1.png' en la carpeta /public
+import firmaJaniUrl from '../assets/Jani.1.png'; // IMPORTANTE: Importamos la firma directamente
 
 function ContratoPuntas() {
   const location = useLocation();
