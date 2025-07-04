@@ -1,11 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-function CustomSelect({ label, options, value, onChange, name, placeholder = "Selecciona..." }) {
+function CustomSelect({ label, options, value, onChange, name, placeholder = "Selecciona...", error }) {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef(null);
 
   const selectedOption = options.find(option => option.value === value);
   const displayValue = selectedOption ? selectedOption.label : placeholder;
+
+  const errorButtonClasses = 'border-red-500 focus:border-red-500 focus:ring-red-500';
+  const defaultButtonClasses = 'border-gray-300 focus:ring-soft-gold focus:border-soft-gold';
+  const errorLabelClasses = 'text-red-400';
+  const defaultLabelClasses = 'text-off-white/80';
 
   // Cierra el menú si se hace clic fuera de él
   useEffect(() => {
@@ -28,13 +33,13 @@ function CustomSelect({ label, options, value, onChange, name, placeholder = "Se
 
   return (
     <div className="relative" ref={wrapperRef}>
-      <label className="block text-sm font-medium text-off-white/80 mb-1">
+      <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${error ? errorLabelClasses : defaultLabelClasses}`}>
         {label}
       </label>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-3 bg-white text-grafito border border-gray-300 rounded-lg focus:ring-2 focus:ring-soft-gold focus:border-soft-gold transition text-left flex justify-between items-center"
+        className={`w-full p-3 bg-white text-grafito border rounded-lg focus:ring-2 transition text-left flex justify-between items-center ${error ? errorButtonClasses : defaultButtonClasses}`}
       >
         <span className={selectedOption ? 'text-grafito' : 'text-gray-400'}>{displayValue}</span>
         <svg className={`w-5 h-5 text-gray-400 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">

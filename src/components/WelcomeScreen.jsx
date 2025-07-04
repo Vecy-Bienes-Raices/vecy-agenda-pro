@@ -49,7 +49,7 @@ function WelcomeScreen() {
       
       <button
         onClick={() => navigate('/formulario')}
-        className="bg-soft-gold/80 hover:bg-soft-gold text-volcanic-black font-bold py-3 px-10 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold"
+        className="bg-soft-gold/80 hover:bg-soft-gold text-volcanic-black font-bold py-3 px-10 rounded-lg transition-all duration-300 shadow-lg hover:shadow-2xl hover:shadow-luminous-gold"
       >
         EMPECEMOS
       </button>

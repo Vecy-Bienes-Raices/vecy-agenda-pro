@@ -9,7 +9,7 @@ const getBogotaNow = () => {
   return new Date(utc - (5 * 60 * 60000));
 };
 
-const CustomDateTimePicker = ({ label, selected, onChange }) => {
+const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
   // --- TIMEZONE-AWARE STATE ---
   // All "now" and "today" calculations are based on Bogotá time.
   const [bogotaNow] = useState(getBogotaNow());
@@ -107,10 +107,16 @@ const CustomDateTimePicker = ({ label, selected, onChange }) => {
     return slots;
   }, []);
 
+  // Clases condicionales para el estado de error
+  const errorBorderClasses = 'border-red-500';
+  const defaultBorderClasses = 'border-white/10';
+  const errorLabelClasses = 'text-red-400';
+  const defaultLabelClasses = 'text-off-white/80';
+
   return (
     <div className="flex flex-col w-full">
-      <label className="mb-2 text-sm font-medium text-off-white/80">{label}</label>
-      <div className="bg-black/20 p-4 rounded-lg border border-white/10">
+      <label className={`mb-2 text-sm font-medium transition-colors duration-300 ${error ? errorLabelClasses : defaultLabelClasses}`}>{label}</label>
+      <div className={`bg-black/20 p-4 rounded-lg border transition-colors duration-300 ${error ? errorBorderClasses : defaultBorderClasses}`}>
         {/* Encabezado del Calendario */}
         <div className="flex justify-between items-center mb-4">
           <button type="button" onClick={() => changeMonth(-1)} className="text-2xl text-soft-gold/80 hover:text-soft-gold transition-colors">‹</button>
