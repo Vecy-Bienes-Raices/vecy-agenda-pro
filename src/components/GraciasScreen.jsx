@@ -1,14 +1,18 @@
 import React from 'react';
-import { useSearchParams, Link } from 'react-router-dom'; // Usar hooks de react-router
+import { useLocation, Link } from 'react-router-dom'; // Usar useLocation para recibir el estado
 
 const imageUrl = '/Vecy_confirmacion.png';
 
 function GraciasScreen() {
-  const [searchParams] = useSearchParams();
-  const nombre = searchParams.get('nombre') || 'estimado cliente';
-  const email = searchParams.get('email') || 'tu correo electrónico';
-  const servicio = searchParams.get('servicio');
-  const celular = searchParams.get('celular');
+  const location = useLocation();
+  // Obtenemos los datos completos del formulario desde el estado de la navegación
+  const { formData } = location.state || {};
+
+  // Usamos los datos recibidos, con valores por defecto si no llegan
+  const nombre = formData?.solicitante_nombre || 'estimado cliente';
+  const servicio = formData?.servicio_solicitado;
+  const celular = formData?.solicitante_celular;
+  const esAgente = formData?.solicitante_perfil === 'Agente';
 
   // Mensaje dinámico basado en el servicio solicitado
   const getServiceMessage = () => {
@@ -62,6 +66,16 @@ function GraciasScreen() {
           <img src="/icono-whatsapp.png" alt="WhatsApp" className="h-6 w-6" />
           Contactar por WhatsApp
         </a>
+        {/* Botón condicional para descargar el contrato */}
+        {esAgente && (
+          <Link
+            to="/contrato-puntas"
+            state={{ formData }} // Pasamos los datos del formulario a la página del contrato
+            className="bg-soft-gold/80 hover:bg-soft-gold text-volcanic-black font-bold py-3 px-8 rounded-lg transition-all duration-300 shadow-lg hover:shadow-2xl hover:shadow-luminous-gold text-center flex items-center justify-center"
+          >
+            Descargar Contrato
+          </Link>
+        )}
         <Link to="/" className="bg-transparent hover:bg-white/10 border border-soft-gold text-soft-gold font-bold py-3 px-8 rounded-lg transition-all duration-300">
           Volver al Inicio
         </Link>

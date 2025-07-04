@@ -7,6 +7,7 @@ import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
 import GraciasScreen from './components/GraciasScreen'; // Importamos la pantalla de gracias
 import DeclineScreen from './components/DeclineScreen.jsx'; // CORRECCIÓN: Se añade la extensión .jsx para ser explícitos
+import ContratoPuntas from './components/ContratoPuntas';
 
 // Componente "Wrapper" que da el estilo de fondo a todas las páginas
 function Layout({ children }) {
@@ -31,6 +32,7 @@ function App() {
           <Route path="/terminos-y-condiciones" element={<TermsOfService />} />
           <Route path="/gracias" element={<GraciasScreen />} />
           <Route path="/declinado" element={<DeclineScreen />} />
+          <Route path="/contrato-puntas" element={<ContratoPuntas />} />
         </Routes>
       </Layout>
     </Router>

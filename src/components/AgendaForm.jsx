@@ -12,13 +12,18 @@ function Spinner() {
   return (<svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-volcanic-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>);
 }
 
-function AuthorizationCheckbox({ formData, handleChange, isAgentView }) {
+function AuthorizationCheckbox({ formData, handleChange, isAgentView, error }) {
   const legendText = isAgentView ? '5. Autorización Final' : '4. Autorización';
+  const legendClasses = `text-xl font-semibold px-2 -ml-2 transition-colors duration-300 ${error ? 'text-red-400' : 'text-off-white'}`;
+  const labelClasses = `ml-3 block text-sm transition-colors duration-300 ${error ? 'text-red-400' : 'text-off-white/80'}`;
+  const fieldsetClasses = `border-t-2 pt-6 transition-colors duration-300 ${error ? 'border-red-500' : 'border-soft-gold'}`;
+  const checkboxClasses = `h-4 w-4 mt-1 bg-white accent-esmeralda focus:ring-soft-gold rounded transition-colors duration-300 ${error ? 'border-red-500 ring-1 ring-red-500' : 'border-off-white/50'}`;
+
   return (
-    <fieldset className="border-t-2 border-soft-gold pt-6">
-      <legend className="text-xl font-semibold text-off-white px-2 -ml-2">{legendText}</legend>
-      <div className="mt-6 flex items-start"><input id="autorizacion" name="autorizacion" type="checkbox" required checked={formData.autorizacion} onChange={handleChange} className="h-4 w-4 mt-1 bg-white border-off-white/50 accent-esmeralda focus:ring-soft-gold rounded" />
-        <label htmlFor="autorizacion" className="ml-3 block text-sm text-off-white/80">
+    <fieldset className={fieldsetClasses}>
+      <legend className={legendClasses}>{legendText}</legend>
+      <div className="mt-6 flex items-start"><input id="autorizacion" name="autorizacion" type="checkbox" required checked={formData.autorizacion} onChange={handleChange} className={checkboxClasses} />
+        <label htmlFor="autorizacion" className={labelClasses}>
           He leído y acepto la <Link to="/terminos-y-condiciones" target="_blank" rel="noopener noreferrer" className="font-semibold text-soft-gold hover:underline">cláusula de confidencialidad y veracidad de datos</Link>.
           <span className="block mt-2">
             Yo, <span className="font-bold">{formData.solicitante_nombre || "{nombre}"}</span>, con número <span className="font-bold">{formData.solicitante_numero_documento || "{numeroDeDocumento}"}</span>, al enviar este formulario, confirmo bajo la gravedad de juramento que todos los datos proporcionados son precisos y verídicos. Autorizo a Vecy Bienes Raíces para que esta información sea utilizada de acuerdo con sus políticas para los fines establecidos en este formulario.
@@ -40,11 +45,27 @@ function AgendaForm() {
     solicitante_tipo_documento: '', solicitante_numero_documento: '', // 2. Pequeño ajuste para un valor inicial más lógico
     servicio_solicitado: '', opcion_negocio: '', codigo_inmueble: '', fecha_cita_bogota: null, cantidad_personas: '',
     tipo_cliente: '', interesado_nombre: '', interesado_tipo_documento: '', interesado_documento: '',
-    firma_virtual_base64: '', autorizacion: false, metodoFirma: 'virtual',
+    firma_virtual_base64: '', autorizacion: false, metodoFirma: '', firma_digital_archivo: null,
   });
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value, type, checked, files } = e.target;
+
+    // Manejo especial para el input de tipo 'file' de la firma digital
+    if (type === 'file' && name === 'firma_digital_archivo') {
+      const file = files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          // El resultado es un Data URL (Base64) que se puede usar en una etiqueta <img>
+          // Lo guardamos en el mismo campo que la firma virtual para simplificar
+          setFormData(prev => ({ ...prev, firma_virtual_base64: reader.result, firma_digital_archivo: file }));
+        };
+        reader.readAsDataURL(file);
+      }
+      return; // Salimos para que no continúe con la lógica de abajo
+    }
+
     const rawValue = type === 'checkbox' ? checked : value;
 
     // Usar la forma funcional de setState para garantizar el estado más reciente
@@ -82,6 +103,10 @@ function AgendaForm() {
       } else if (name === 'interesado_tipo_documento') {
         // Limpiar el número de documento del cliente al cambiar el tipo
         newState.interesado_documento = '';
+      } else if (name === 'metodoFirma') {
+        // Si se cambia el método de firma, se limpia la firma anterior
+        newState.firma_virtual_base64 = '';
+        newState.firma_digital_archivo = null;
       }
 
       return newState;
@@ -93,7 +118,13 @@ function AgendaForm() {
     setFormData(prev => ({ ...prev, fecha_cita_bogota: date }));
   };
 
-  const handleSignatureChange = (signatureData) => { setFormData(prevState => ({ ...prevState, firma_virtual_base64: signatureData })); };
+  const handleSignatureChange = (signatureData) => {
+    setFormData(prevState => ({
+      ...prevState,
+      firma_virtual_base64: signatureData,
+      firma_digital_archivo: null // Limpiamos la otra opción de firma
+    }));
+  };
   const handleConsent = () => { setConsentGiven(true); };
 
   const handleDecline = () => {
@@ -126,7 +157,18 @@ function AgendaForm() {
       fieldsToValidate.interesado_nombre = 'Nombre del cliente';
       fieldsToValidate.interesado_tipo_documento = 'Tipo de documento del cliente';
       fieldsToValidate.interesado_documento = 'Número de documento del cliente';
+      // Validamos que se haya elegido un método de firma
+      fieldsToValidate.metodoFirma = 'Método de Firma';
+      // Y validamos el campo correspondiente al método elegido
+      if (formData.metodoFirma === 'virtual') {
+        fieldsToValidate.firma_virtual_base64 = 'Firma del Agente';
+      } else if (formData.metodoFirma === 'digital') {
+        fieldsToValidate.firma_digital_archivo = 'Archivo de Firma Digital'; // Validamos que el archivo exista
+      }
     }
+
+    // La autorización siempre es obligatoria
+    fieldsToValidate.autorizacion = 'Autorización Final';
 
     const newErrors = {};
     let firstErrorMessage = '';
@@ -137,6 +179,14 @@ function AgendaForm() {
         if (!firstErrorMessage) {
           if (field === 'cantidad_personas') {
             firstErrorMessage = "Selecciona una cantidad válida de personas entre 1 y 6.";
+          } else if (field === 'autorizacion') {
+            firstErrorMessage = 'Debes aceptar la cláusula de confidencialidad para continuar.';
+          } else if (field === 'firma_virtual_base64') {
+            firstErrorMessage = 'La firma del agente es obligatoria.';
+          } else if (field === 'metodoFirma') {
+            firstErrorMessage = 'Debes seleccionar un método de firma.';
+          } else if (field === 'firma_digital_archivo') {
+            firstErrorMessage = 'Debes subir el archivo de tu firma digital.';
           } else {
             firstErrorMessage = `El campo "${fieldsToValidate[field]}" es obligatorio.`;
           }
@@ -195,14 +245,8 @@ function AgendaForm() {
         throw supabaseError;
       }
 
-      // Si todo va bien, redirigimos a la página de gracias con más detalles
-      const params = new URLSearchParams({
-        nombre: formData.solicitante_nombre,
-        email: formData.solicitante_email,
-        servicio: formData.servicio_solicitado,
-        celular: formData.solicitante_celular,
-      });
-      navigate(`/gracias?${params.toString()}`);
+      // Si todo va bien, redirigimos a la página de gracias, pasando todos los datos del formulario
+      navigate('/gracias', { state: { formData } });
     } catch (error) {
       console.error("Error detallado al enviar a Supabase:", error);
       setError(error.message || 'No se pudo completar la solicitud. Revisa tu conexión o inténtalo más tarde.');
@@ -266,6 +310,9 @@ function AgendaForm() {
     { value: '5', label: '5 personas' },
     { value: '6', label: '6 personas' },
   ];
+
+  const radioError = !!formErrors.metodoFirma;
+  const radioClasses = `mr-2 h-4 w-4 bg-transparent accent-esmeralda focus:ring-soft-gold rounded-full transition-colors duration-300 ${radioError ? 'border-red-500 ring-1 ring-red-500' : 'border-off-white/50'}`;
 
   return (
     <form noValidate onSubmit={handleSubmit}>
@@ -359,9 +406,38 @@ function AgendaForm() {
                   />
                 </div>
               </fieldset>
-              <fieldset className="border-t-2 border-soft-gold pt-6"><legend className="text-xl font-semibold text-off-white px-2 -ml-2">4. Firma del Agente</legend><div className="mt-4"><label className="block text-sm font-medium text-off-white/80">Elige el método de firma:</label><div className="mt-2 flex gap-6"><label className="flex items-center text-off-white/80"><input type="radio" name="metodoFirma" value="virtual" checked={formData.metodoFirma === 'virtual'} onChange={handleChange} className="mr-2 h-4 w-4 bg-transparent border-off-white/50 accent-esmeralda focus:ring-soft-gold" />Firma Virtual (Dibujar)</label><label className="flex items-center text-off-white/80"><input type="radio" name="metodoFirma" value="digital" checked={formData.metodoFirma === 'digital'} onChange={handleChange} className="mr-2 h-4 w-4 bg-transparent border-off-white/50 accent-esmeralda focus:ring-soft-gold" />Firma Digital (Subir archivo)</label></div>{formData.metodoFirma === 'virtual' && <div className="mt-4"><label className="block text-sm font-medium text-off-white/80 mb-2">Por favor, firma en el siguiente recuadro:</label><SignaturePadComponent onSignatureChange={handleSignatureChange} /></div>}{formData.metodoFirma === 'digital' && <div className="mt-4"><label htmlFor="firma_digital_upload" className="block text-sm font-medium text-off-white/80 mb-2">Sube el archivo de tu firma (PDF, PNG, JPG):</label><input type="file" id="firma_digital_upload" name="firma_digital_upload" className="w-full text-sm text-off-white/80 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-soft-gold/20 file:text-soft-gold hover:file:bg-soft-gold/30" /></div>}</div></fieldset>
+              <fieldset className={`border-t-2 pt-6 transition-colors duration-300 ${!!formErrors.metodoFirma || !!formErrors.firma_virtual_base64 || !!formErrors.firma_digital_archivo ? 'border-red-500' : 'border-soft-gold'}`}>
+                <legend className="text-xl font-semibold text-off-white px-2 -ml-2">4. Firma del Agente</legend>
+                <div className="mt-4">
+                  <label className={`block text-sm font-medium transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}>
+                    Elige el método de firma:
+                  </label>
+                  <div className="mt-2 flex gap-6">
+                    <label className={`flex items-center transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}>
+                      <input type="radio" name="metodoFirma" value="virtual" checked={formData.metodoFirma === 'virtual'} onChange={handleChange} className={radioClasses} />
+                      Firma Virtual (Dibujar)
+                    </label>
+                    <label className={`flex items-center transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}>
+                      <input type="radio" name="metodoFirma" value="digital" checked={formData.metodoFirma === 'digital'} onChange={handleChange} className={radioClasses} />
+                      Firma Digital (Subir archivo)
+                    </label>
+                  </div>
+                  {formData.metodoFirma === 'virtual' && <div className="mt-4"><label className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_virtual_base64 ? 'text-red-400' : 'text-off-white/80'}`}>Por favor, firma en el siguiente recuadro:</label><SignaturePadComponent onSignatureChange={handleSignatureChange} /></div>}
+                  {formData.metodoFirma === 'digital' && (
+                    <div className="mt-4">
+                      <label htmlFor="firma_digital_upload" className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_digital_archivo ? 'text-red-400' : 'text-off-white/80'}`}>
+                        Sube el archivo de tu firma (PDF, PNG, JPG):
+                      </label>
+                      <input
+                        type="file" id="firma_digital_upload" name="firma_digital_archivo" onChange={handleChange} accept=".png,.jpg,.jpeg"
+                        className={`w-full text-sm text-off-white/80 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-soft-gold/20 file:text-soft-gold hover:file:bg-soft-gold/30 ${!!formErrors.firma_digital_archivo ? 'ring-2 ring-red-500 rounded-lg p-2' : ''}`}
+                      />
+                    </div>
+                  )}
+                </div>
+              </fieldset>
             </>)}
-            <AuthorizationCheckbox formData={formData} handleChange={handleChange} isAgentView={showAgentSections} />
+            <AuthorizationCheckbox formData={formData} handleChange={handleChange} isAgentView={showAgentSections} error={!!formErrors.autorizacion} />
             <div className="mt-8"><button type="submit" disabled={isSubmitting} className="w-full bg-soft-gold/80 hover:bg-soft-gold text-volcanic-black font-bold py-4 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? <Spinner /> : null}{isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}</button></div>
             {error && (<div className="mt-4 text-center text-red-400 bg-red-900/50 p-3 rounded-lg">{error}</div>)}
           </>
