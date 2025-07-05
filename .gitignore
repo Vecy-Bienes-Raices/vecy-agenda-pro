@@ -7,18 +7,33 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Node modules
+node_modules/
 
-# Editor directories and files
+# Builds
+dist/
+dist-ssr/
+build/
+.out/
+
+# Local env files
+*.local
+.env
+.env.*.local
+
+# Editor config
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
+
+# Windows system files
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Archivos corruptos generados por error
+*;*.js
+import React*.js
