@@ -1,13 +1,17 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { supabase } from '../supabaseClient'; // Asumimos que tu cliente de Supabase está aquí
 
 const logoUrl = '/Vecy_logo_oficial.png';
 import firmaJaniUrl from '../assets/jani 1.png'; // IMPORTANTE: Importamos la firma directamente
+
 function ContratoPuntas() {
   const location = useLocation();
   const contractRef = useRef(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
   // Obtenemos formData del estado de la navegación
   const { formData } = location.state || {};
 
@@ -24,42 +28,70 @@ function ContratoPuntas() {
     );
   }
 
-  const handleDownloadPdf = () => {
+  const handleGenerateAndSavePdf = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    setFeedbackMessage('Iniciando proceso, por favor espera...');
+
     const input = contractRef.current;
     const buttons = document.getElementById('contract-buttons');
     if (buttons) buttons.style.display = 'none'; // Ocultar botones antes de capturar
 
-    html2canvas(input, {
-      scale: 2, // Aumentar la escala para mejor resolución
-      useCORS: true,
-      backgroundColor: '#ffffff', // Fondo blanco explícito para el PDF
-    }).then(canvas => {
+    try {
+      setFeedbackMessage('Generando vista previa del contrato...');
+      const canvas = await html2canvas(input, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      });
+
+      setFeedbackMessage('Creando el documento PDF...');
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdf = new jsPDF('p', 'mm', 'a4', true); // true para compresión
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const canvasWidth = canvas.width;
-      const canvasHeight = canvas.height;
-      const ratio = canvasWidth / canvasHeight;
-      const imgWidth = pdfWidth - 20; // Ancho con márgenes de 10mm a cada lado
-      const imgHeight = imgWidth / ratio;
-
+      const ratio = canvas.width / canvas.height;
+      const imgHeight = pdfWidth / ratio;
       let heightLeft = imgHeight;
-      let position = 10; // Margen superior
+      let position = 0;
 
-      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight, undefined, 'FAST');
       heightLeft -= pdfHeight;
 
       while (heightLeft > 0) {
-        position = heightLeft - imgHeight + 10; // Ajuste de posición para la siguiente página
+        position = -heightLeft;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight, undefined, 'FAST');
         heightLeft -= pdfHeight;
       }
 
+      // 1. Descargar el PDF para el usuario
       pdf.save(`Contrato_Puntas_Vecy_${formData.solicitante_nombre.replace(/\s/g, '_')}.pdf`);
+      setFeedbackMessage('PDF descargado. Guardando copia de seguridad en el sistema...');
+
+      // 2. Subir la copia a Supabase Storage
+      const pdfBlob = pdf.output('blob');
+      const fileName = `contratos-puntas/agente_${formData.solicitante_numero_documento}_${Date.now()}.pdf`;
+
+      // Asegúrate de tener un bucket llamado "documentos" en tu Supabase Storage.
+      const { data, error: uploadError } = await supabase.storage
+        .from('documentos') // O el nombre de tu bucket
+        .upload(fileName, pdfBlob, {
+          contentType: 'application/pdf',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      console.log('PDF subido a Supabase:', data);
+      setFeedbackMessage('¡Éxito! El contrato se ha descargado y guardado de forma segura.');
+    } catch (error) {
+      console.error('Error en el proceso del PDF:', error);
+      setFeedbackMessage(`Error al guardar la copia: ${error.message}. Por favor, inténtalo de nuevo.`);
+    } finally {
       if (buttons) buttons.style.display = 'flex'; // Mostrar botones de nuevo
-    });
+      setIsProcessing(false);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -152,13 +184,14 @@ function ContratoPuntas() {
         </div>
 
         <div id="contract-buttons" className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
-            <button onClick={handleDownloadPdf} className="bg-esmeralda hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 shadow-lg hover:shadow-2xl hover:shadow-green-500/50">
-                Descargar Contrato en PDF
+            <button onClick={handleGenerateAndSavePdf} disabled={isProcessing} className="bg-esmeralda hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 shadow-lg hover:shadow-2xl hover:shadow-green-500/50 disabled:bg-gray-500 disabled:cursor-not-allowed">
+                {isProcessing ? 'Procesando...' : 'Descargar y Guardar Contrato'}
             </button>
             <Link to="/" className="bg-transparent hover:bg-white/10 border border-soft-gold text-soft-gold font-bold py-3 px-8 rounded-lg transition-all duration-300 text-center">
                 Volver al Inicio
             </Link>
         </div>
+        {feedbackMessage && <p className="text-center text-white mt-4 animate-pulse">{feedbackMessage}</p>}
     </div>
   );
 }

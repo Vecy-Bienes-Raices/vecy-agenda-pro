@@ -9,7 +9,7 @@ function DeclineScreen() {
       <img
         src={imageUrl}
         alt="Solicitud Declinada"
-        className="mx-auto w-64 mb-4"
+        className="mx-auto w-48 sm:w-64 mb-4"
       />
       <h1 className="text-4xl font-bold text-off-white">¡Oh no!</h1>
 
