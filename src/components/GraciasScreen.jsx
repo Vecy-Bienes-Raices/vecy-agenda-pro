@@ -21,6 +21,7 @@ function GraciasScreen() {
   // Obtenemos el nombre y si es agente para usarlo en la UI
   const nombre = formData?.solicitante_nombre || 'estimado cliente';
   const esAgente = formData?.solicitante_perfil === 'Agente';
+  const email = formData?.solicitante_email || '';
 
   // --- CORRECCIÓN: Se elimina la llamada a la red y se reemplaza por una simulación ---
   useEffect(() => {
@@ -30,19 +31,23 @@ function GraciasScreen() {
       return;
     }
 
-    // 1. Inicia la simulación mostrando el spinner y el mensaje de "procesando".
-    setFeedbackMessage('Enviando confirmación a tu correo...');
+    // 1. Inicia la simulación mostrando el spinner y un mensaje de "procesando" específico y personalizado.
+    const loadingMessage = esAgente
+      ? `Generando y enviando confirmación y contrato al correo ${email}`
+      : `Enviando confirmación al correo ${email}`;
+    setFeedbackMessage(loadingMessage);
 
-    // 2. Simula un pequeño retraso de 1.5 segundos.
+    // 2. Simula un retraso de 3 segundos para mejorar la percepción del usuario.
     const timer = setTimeout(() => {
       // 3. Cambia el estado a "éxito" para mostrar el check y el mensaje final.
       setStatus('success');
-      setFeedbackMessage('¡Listo! Hemos enviado la confirmación a tu correo.');
-    }, 1500);
+      const successMessage = esAgente ? '¡Listo! Hemos enviado el contrato a tu correo.' : '¡Listo! Hemos enviado la confirmación a tu correo.';
+      setFeedbackMessage(successMessage);
+    }, 3000);
 
     // Limpia el temporizador si el usuario navega a otra página antes de que termine.
     return () => clearTimeout(timer);
-  }, [formData, navigate]); // El efecto se ejecuta si cambian los datos o la función de navegación.
+  }, [formData, navigate, esAgente, email]); // El efecto se ejecuta si cambian los datos o la función de navegación.
 
   // Función para mostrar el ícono correcto según el estado
   const getStatusIcon = () => {
