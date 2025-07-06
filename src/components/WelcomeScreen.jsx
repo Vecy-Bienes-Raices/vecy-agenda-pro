@@ -1,5 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FaUserShield, FaRegHandshake } from 'react-icons/fa';
+import { BsInfoCircle } from 'react-icons/bs';
 
 const portadImageUrl = '/Vecy_agenda1.png';
 
@@ -25,7 +27,7 @@ function WelcomeScreen() {
         {/* --- ¡AQUÍ ESTÁ EL NUEVO BLOQUE DE TEXTO! --- */}
         <div className="text-off-white/90 max-w-2xl mx-auto my-6 space-y-4 text-left">
           <p className="font-semibold text-lg flex items-center">
-            <span>🔒</span>
+            <BsInfoCircle className="text-soft-gold text-xl" />
             <span className="ml-2">Instrucciones:</span>
           </p>
           <ul className="list-disc list-inside pl-4 space-y-2">
@@ -33,11 +35,11 @@ function WelcomeScreen() {
             <li><strong>Agente:</strong> Autoriza, llena tus datos y los del cliente, firma y envía.</li>
           </ul>
           <p className="flex items-start">
-            <span className="mt-1">✅</span>
+            <FaUserShield className="text-soft-gold text-xl mt-1 flex-shrink-0" />
             <span className="ml-2">Por tu seguridad y la nuestra es clave ingresar datos reales para agilizar el permisos de ingreso.</span>
           </p>
           <p className="flex items-start">
-            <span className="mt-1">🤝</span>
+            <FaRegHandshake className="text-soft-gold text-xl mt-1 flex-shrink-0" />
             <span className="ml-2">
               <strong>¡Gracias por confiar en nosotros!</strong>
             </span>

@@ -70,7 +70,8 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
     } else {
       onChange(null); // Si la selección está incompleta, se envía null.
     }
-  }, [selectedDate, selectedTime, onChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, selectedTime]); // << -- CORRECCIÓN APLICADA AQUÍ: Se eliminó 'onChange' del array
 
   const handleDateSelect = (day) => {
     const newSelectedDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
