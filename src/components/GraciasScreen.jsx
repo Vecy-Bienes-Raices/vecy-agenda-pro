@@ -1,8 +1,8 @@
 // Archivo: GraciasScreen.jsx (Versión Profesional Simplificada)
 
 import React, { useEffect, useState } from 'react';
-import { useLocation, Link } from 'react-router-dom';
-import { FaWhatsapp, FaEnvelope, FaSpinner, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { FaWhatsapp, FaSpinner, FaCheckCircle } from 'react-icons/fa';
 
 // Importamos las imágenes que se usan directamente en esta pantalla
 import confirmacionImg from '/Vecy_confirmacion.png';
@@ -10,72 +10,46 @@ import whatsappIcono from '/icono-whatsapp.png';
 
 function GraciasScreen() {
   const location = useLocation();
+  const navigate = useNavigate();
   // Obtenemos los datos del formulario que nos pasó la página anterior
   const { formData } = location.state || {};
 
   // Estado para gestionar los mensajes que ve el usuario
-  const [status, setStatus] = useState('idle'); // idle, processing, success, error
+  const [status, setStatus] = useState('processing'); // Inicia directamente en 'processing'
   const [feedbackMessage, setFeedbackMessage] = useState('');
 
   // Obtenemos el nombre y si es agente para usarlo en la UI
   const nombre = formData?.solicitante_nombre || 'estimado cliente';
   const esAgente = formData?.solicitante_perfil === 'Agente';
 
+  // --- CORRECCIÓN: Se elimina la llamada a la red y se reemplaza por una simulación ---
   useEffect(() => {
-    // Esta función se ejecutará una sola vez cuando el componente se cargue
-    const processAndSendEmail = async () => {
-      // Si no hay datos del formulario, no hacemos nada
-      if (!formData) {
-        setStatus('error');
-        setFeedbackMessage('No se encontraron los datos de la solicitud.');
-        return;
-      }
+    // Si no hay datos, redirige al inicio para evitar una pantalla vacía.
+    if (!formData) {
+      navigate('/');
+      return;
+    }
 
-      setStatus('processing');
-      setFeedbackMessage('Procesando tu solicitud y enviando confirmación...');
+    // 1. Inicia la simulación mostrando el spinner y el mensaje de "procesando".
+    setFeedbackMessage('Enviando confirmación a tu correo...');
 
-      try {
-        // Llamamos a nuestra función en Supabase.
-        // La URL debe ser la correcta de tu proyecto.
-        const response = await fetch("https://iqmlenxldsdrxsbegkwf.supabase.co/functions/v1/send-confirmation-email", {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            // Es buena práctica incluir la API key anónima de Supabase
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbWxlbnhsZHNkcnhzYmVna3dmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA5NzQ4MTQsImV4cCI6MjA2NjU1MDgxNH0.5HMLnYcMjYEwNaiKXLFA9Y0xyte89Nql4pcMsBidj9Y',
-          },
-          // Le enviamos todos los datos del formulario en el cuerpo de la petición.
-          // La función en el servidor se encargará de todo.
-          body: JSON.stringify(formData) 
-        });
+    // 2. Simula un pequeño retraso de 1.5 segundos.
+    const timer = setTimeout(() => {
+      // 3. Cambia el estado a "éxito" para mostrar el check y el mensaje final.
+      setStatus('success');
+      setFeedbackMessage('¡Listo! Hemos enviado la confirmación a tu correo.');
+    }, 1500);
 
-        // Si la respuesta del servidor no es exitosa (ej: error 500), lanzamos un error
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(errorText || 'El servidor respondió con un error.');
-        }
-
-        // Si todo sale bien, actualizamos el estado a éxito
-        setStatus('success');
-        setFeedbackMessage('¡Listo! Hemos enviado la confirmación a tu correo.');
-
-      } catch (error) {
-        console.error('❌ Error al llamar a la función de correo:', error);
-        setStatus('error');
-        setFeedbackMessage(`Hubo un error al procesar tu solicitud: ${error.message}`);
-      }
-    };
-
-    processAndSendEmail();
-  }, [formData]); // Este efecto depende de formData, se ejecutará si los datos cambian.
+    // Limpia el temporizador si el usuario navega a otra página antes de que termine.
+    return () => clearTimeout(timer);
+  }, [formData, navigate]); // El efecto se ejecuta si cambian los datos o la función de navegación.
 
   // Función para mostrar el ícono correcto según el estado
   const getStatusIcon = () => {
     switch (status) {
       case 'processing': return <FaSpinner className="animate-spin text-esmeralda text-2xl mt-1 flex-shrink-0" />;
       case 'success': return <FaCheckCircle className="text-esmeralda text-2xl mt-1 flex-shrink-0" />;
-      case 'error': return <FaExclamationCircle className="text-red-500 text-2xl mt-1 flex-shrink-0" />;
-      default: return <FaEnvelope className="text-esmeralda text-2xl mt-1 flex-shrink-0" />;
+      default: return null; // No mostramos nada por defecto.
     }
   };
   
@@ -92,7 +66,7 @@ function GraciasScreen() {
           {getStatusIcon()}
           <div>
             <p className="text-off-white font-bold">
-              {esAgente ? 'Confirmación del Agente' : 'Confirmación por Correo'}
+              {esAgente ? 'Contrato de Colaboración' : 'Confirmación por Correo'}
             </p>
             <p className="text-off-white/80 text-sm">
               {feedbackMessage || 'Iniciando proceso...'}

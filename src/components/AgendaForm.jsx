@@ -48,19 +48,24 @@ function AgendaForm() {
     firma_virtual_base64: '', autorizacion: false, metodoFirma: '', firma_digital_archivo: null,
   });
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // Al subir un archivo, se guarda su representación Base64 y el objeto del archivo.
+      setFormData(prev => ({
+        ...prev,
+        firma_virtual_base64: reader.result,
+        firma_digital_archivo: file
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleChange = (e) => {
-    const { name, value, type, checked, files } = e.target;
-    if (type === 'file' && name === 'firma_digital_archivo') {
-      const file = files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setFormData(prev => ({ ...prev, firma_virtual_base64: reader.result, firma_digital_archivo: file }));
-        };
-        reader.readAsDataURL(file);
-      }
-      return;
-    }
+    const { name, value, type, checked } = e.target;
     const rawValue = type === 'checkbox' ? checked : value;
     setFormData(prev => {
       let val = rawValue;
@@ -229,7 +234,7 @@ const handleSubmit = async (event) => {
                   <label className={`flex items-center transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}><input type="radio" name="metodoFirma" value="digital" checked={formData.metodoFirma === 'digital'} onChange={handleChange} className={radioClasses} /> Firma Digital (Subir archivo)</label>
                 </div>
                 {formData.metodoFirma === 'virtual' && <div className="mt-4"><label className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_virtual_base64 ? 'text-red-400' : 'text-off-white/80'}`}>Por favor, firma en el siguiente recuadro:</label><SignaturePadComponent onSignatureChange={handleSignatureChange} /></div>}
-                {formData.metodoFirma === 'digital' && (<div className="mt-4"><label htmlFor="firma_digital_upload" className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_digital_archivo ? 'text-red-400' : 'text-off-white/80'}`}>Sube el archivo de tu firma (PDF, PNG, JPG):</label><input type="file" id="firma_digital_upload" name="firma_digital_archivo" onChange={handleChange} accept=".png,.jpg,.jpeg" className={`w-full text-sm text-off-white/80 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-soft-gold/20 file:text-soft-gold hover:file:bg-soft-gold/30 ${!!formErrors.firma_digital_archivo ? 'ring-2 ring-red-500 rounded-lg p-2' : ''}`} /></div>)}
+                {formData.metodoFirma === 'digital' && (<div className="mt-4"><label htmlFor="firma_digital_upload" className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_digital_archivo ? 'text-red-400' : 'text-off-white/80'}`}>Sube el archivo de tu firma (PNG, JPG):</label><input type="file" id="firma_digital_upload" name="firma_digital_archivo" onChange={handleFileChange} accept=".png,.jpg,.jpeg" className={`w-full text-sm text-off-white/80 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-soft-gold/20 file:text-soft-gold hover:file:bg-soft-gold/30 ${!!formErrors.firma_digital_archivo ? 'ring-2 ring-red-500 rounded-lg p-2' : ''}`} /></div>)}
               </div></fieldset>
             </>)}
             <AuthorizationCheckbox formData={formData} handleChange={handleChange} isAgentView={showAgentSections} error={!!formErrors.autorizacion} />
