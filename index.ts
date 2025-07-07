@@ -21,13 +21,13 @@ function getEmailContent(formData) {
     </head><body><div class="container"><div class="header"><img src="${logoUrlParaEmail}" alt="Vecy Bienes Raíces Logo"></div><div class="content"><h2>${title}</h2>${bodyContent}</div><div class="footer"><p>Vecy Bienes Raíces S.A.S. © ${new Date().getFullYear()}</p><p><a href="https://vecy.com.co" target="_blank">vecy.com.co</a></p></div></div></body></html>`;
   if (solicitante_perfil === 'Agente') {
     const subject = `📄 Contrato de Colaboración y Confirmación de Solicitud | Vecy Agenda`;
-    const title = `¡Hola, ${solicitante_nombre}!`;
-    const body = `<p>Te confirmamos que hemos recibido tu solicitud para el servicio de <strong>"${servicio_solicitado}"</strong> y hemos generado exitosamente el contrato de colaboración para compartir honorarios (puntas).</p><div class="highlight"><p><strong>Documento adjunto:</strong> Contrato_Puntas_${solicitante_nombre.replace(/\s/g, '_')}.pdf</p></div><p style="margin-top: 30px;">Este documento formaliza nuestro acuerdo. Te agradecemos enormemente por tu confianza y colaboración. ¡Estamos listos para alcanzar grandes resultados juntos!</p>`;
+    const title = `Confirmación de Solicitud #${formData.solicitud_id}`;
+    const body = `<p>¡Hola, ${solicitante_nombre}!</p><p>Te confirmamos que hemos recibido tu solicitud para el servicio de <strong>"${servicio_solicitado}"</strong> y hemos generado exitosamente el contrato de colaboración.</p><div class="highlight"><p><strong>ID de Solicitud: ${formData.solicitud_id}</strong></p><p style="margin-top: 8px;"><strong>Documento adjunto:</strong> Contrato_Puntas_${solicitante_nombre.replace(/\s/g, '_')}.pdf</p></div><p style="margin-top: 30px;">Este documento formaliza nuestro acuerdo. ¡Estamos listos para alcanzar grandes resultados juntos!</p>`;
     return { subject, html: baseHtml(title, body) };
   } else {
     const subject = `✅ Solicitud Recibida | Vecy Agenda`;
-    const title = `¡Hola, ${solicitante_nombre}!`;
-    const body = `<p>Hemos recibido tu solicitud para el servicio de <strong>"${servicio_solicitado}"</strong> correctamente a través de Vecy Agenda.</p><p>Nuestro equipo revisará la información y se pondrá en contacto contigo a la brevedad para coordinar los siguientes pasos.</p><div class="highlight"><p>Agradecemos tu confianza en Vecy Bienes Raíces.</p></div>`;
+    const title = `¡Hola, ${solicitante_nombre}! Hemos recibido tu solicitud.`;
+    const body = `<p>Recibimos tu solicitud para el servicio de <strong>"${servicio_solicitado}"</strong> correctamente a través de Vecy Agenda.</p><p>Nuestro equipo revisará la información y se pondrá en contacto contigo a la brevedad para coordinar los siguientes pasos.</p><div class="highlight"><p><strong>ID de tu Solicitud: ${formData.solicitud_id}</strong>. Consérvalo para futuras referencias.</p></div>`;
     return { subject, html: baseHtml(title, body) };
   }
 }
@@ -106,6 +106,15 @@ async function createContractPdf(formData) {
   currentPage.drawText('Acuerdo de Colaboración Inmobiliaria', { x: margin + 70, y: y - 18, font: font, size: 11, color: gray });
   y -= 70;
 
+   // --- ¡NUEVO! AÑADIR ID DE SOLICITUD ---
+     // --- ¡CORRECCIÓN! Mover el ID de la solicitud al encabezado ---
+  if (formData.solicitud_id) {
+    const idText = `Solicitud ID: ${formData.solicitud_id}`;
+    const idTextWidth = boldFont.widthOfTextAtSize(idText, 9);
+    currentPage.drawText(idText, { x: width - margin - idTextWidth, y: y, font: boldFont, size: 9, color: gray });
+  }
+  y -= 70;
+
   // --- CUERPO DEL CONTRATO ---
   const visitDate = formData.fecha_cita ? new Date(formData.fecha_cita).toLocaleString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' }) : 'No especificada';
   const generationDate = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Bogota' });
@@ -115,7 +124,7 @@ async function createContractPdf(formData) {
   y -= 15;
 
   // --- CLÁUSULAS ---
-  const clausula1 = `El presente contrato tiene por objeto establecer los términos de colaboración entre EL AGENTE 1 y EL AGENTE 2 para promover, gestionar y/o contribuir en la intermediación del negocio inmobiliario relacionado con el inmueble identificado con el código ${formData.codigo_inmueble || 'N/A'}, cuya solicitud de gestión fue radicada para el día ${visitDate}, en favor del cliente ${formData.interesado_nombre}, identificado(a) con ${formData.interesado_tipo_documento} No. ${formData.interesado_documento}.`;
+    const clausula1 = `El presente contrato tiene por objeto establecer los términos de colaboración entre EL AGENTE 1 y EL AGENTE 2 para promover, gestionar y/o contribuir en la intermediación del negocio inmobiliario relacionado con el inmueble identificado con el código ${formData.codigo_inmueble || 'N/A'}, donde EL AGENTE 2 mediante el formulario No. ${formData.solicitud_id}, solicita al AGENTE 1 "${formData.servicio_solicitado}" para el día ${visitDate}, en favor del cliente ${formData.interesado_nombre}, identificado(a) con ${formData.interesado_tipo_documento} No. ${formData.interesado_documento}.`;
   y = drawClause('CLÁUSULA PRIMERA: OBJETO', clausula1, y);
 
   const clausula2 = `Los honorarios derivados del negocio serán distribuidos en partes iguales (50% para cada parte), salvo pacto distinto por escrito. Si EL AGENTE 2 únicamente refiere al cliente o la punta que tiene al cliente sin participar activamente en visitas, negociaciones o acompañamiento, su comisión será del 20%.`;

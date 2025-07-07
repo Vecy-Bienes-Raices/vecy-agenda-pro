@@ -151,17 +151,24 @@ const handleSubmit = async (event) => {
 
   setIsSubmitting(true);
   try {
-    const payload = { ...formData, fecha_cita: formData.fecha_cita_bogota ? formData.fecha_cita_bogota.toISOString() : null, cantidad_personas: parseInt(formData.cantidad_personas, 10), };
+    // --- ¡NUEVO! Paso 1: Obtener el ID consecutivo ---
+    const { data: newSolicitudId, error: idError } = await supabase.rpc('get_next_solicitud_id');
+    if (idError) {
+      console.error("Error al obtener el ID de la solicitud:", idError);
+      throw new Error('No se pudo generar un ID para la solicitud. Inténtalo de nuevo.');
+    }
+
+    // --- Paso 2: Preparar el payload con el nuevo ID ---
+    const payload = { ...formData, solicitud_id: newSolicitudId, fecha_cita: formData.fecha_cita_bogota ? formData.fecha_cita_bogota.toISOString() : null, cantidad_personas: parseInt(formData.cantidad_personas, 10), };
     delete payload.fecha_cita_bogota;
     if (payload.solicitante_celular) payload.solicitante_celular = payload.solicitante_celular.replace('+', '');
     Object.keys(payload).forEach(key => { if (typeof payload[key] === 'string') payload[key] = payload[key].trim(); });
 
+    // --- Paso 3: Insertar en la base de datos ---
     const { error: supabaseError } = await supabase.from('solicitudes').insert([payload]);
     if (supabaseError) throw supabaseError;
 
-    // --- ¡CAMBIO IMPORTANTE! ---
-    // Unificamos la llamada a la Edge Function. Ahora se invoca siempre después de guardar en Supabase.
-    // La función se encargará de la lógica de qué correo enviar según el perfil.
+    // --- Paso 4: Invocar la Edge Function para enviar el correo ---
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch("https://iqmlenxldsdrxsbegkwf.supabase.co/functions/v1/send-confirmation-email", {
@@ -169,8 +176,10 @@ const handleSubmit = async (event) => {
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}`, },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) console.error("❌ Error al invocar la Edge Function:", await response.text());
-      else console.log("✅ Solicitud de envío de correo procesada exitosamente.");
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Error al invocar la Edge Function:", errorText);
+      } else console.log("✅ Solicitud de envío de correo procesada exitosamente.");
     } catch (error) { console.error("❌ Error en la petición a la Edge Function:", error); }
     navigate('/gracias', { state: { formData } });
   } catch (error) {
