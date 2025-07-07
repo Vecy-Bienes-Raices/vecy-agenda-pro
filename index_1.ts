@@ -105,7 +105,8 @@ async function createContractPdf(formData) {
   currentPage.drawText('CONTRATO DE PUNTAS COMPARTIDAS', { x: margin + 70, y: y, font: boldFont, size: 16, color: black });
   currentPage.drawText('Acuerdo de Colaboración Inmobiliaria', { x: margin + 70, y: y - 18, font: font, size: 11, color: gray });
 
-  // ID de la solicitud en el encabezado
+
+  // --- ID de la solicitud en el encabezado ---
   if (formData.solicitud_id) {
     const idText = `Solicitud ID: ${formData.solicitud_id}`;
     const idTextWidth = boldFont.widthOfTextAtSize(idText, 9);
@@ -122,7 +123,7 @@ async function createContractPdf(formData) {
   y -= 15;
 
   // --- CLÁUSULAS ---
-  const clausula1 = `El presente contrato tiene por objeto establecer los términos de colaboración entre EL AGENTE 1 y EL AGENTE 2 para promover, gestionar y/o contribuir en la intermediación del negocio inmobiliario relacionado con el inmueble identificado con el código ${formData.codigo_inmueble || 'N/A'}, donde EL AGENTE 2 mediante el formulario No. ${formData.solicitud_id}, solicita al AGENTE 1 "${formData.servicio_solicitado}" para el día ${visitDate}, en favor del cliente ${formData.interesado_nombre}, identificado(a) con ${formData.interesado_tipo_documento} No. ${formData.interesado_documento}.`;
+    const clausula1 = `El presente contrato tiene por objeto establecer los términos de colaboración entre EL AGENTE 1 y EL AGENTE 2 para promover, gestionar y/o contribuir en la intermediación del negocio inmobiliario relacionado con el inmueble identificado con el código ${formData.codigo_inmueble || 'N/A'}, donde EL AGENTE 2 mediante el formulario No. ${formData.solicitud_id}, solicita al AGENTE 1 "${formData.servicio_solicitado}" para el día ${visitDate}, en favor del cliente ${formData.interesado_nombre}, identificado(a) con ${formData.interesado_tipo_documento} No. ${formData.interesado_documento}.`;
   y = drawClause('CLÁUSULA PRIMERA: OBJETO', clausula1, y);
 
   const clausula2 = `Los honorarios derivados del negocio serán distribuidos en partes iguales (50% para cada parte), salvo pacto distinto por escrito. Si EL AGENTE 2 únicamente refiere al cliente o la punta que tiene al cliente sin participar activamente en visitas, negociaciones o acompañamiento, su comisión será del 20%.`;

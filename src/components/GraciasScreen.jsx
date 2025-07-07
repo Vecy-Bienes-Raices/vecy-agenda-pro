@@ -76,6 +76,11 @@ function GraciasScreen() {
             <p className="text-off-white/80 text-sm">
               {feedbackMessage || 'Iniciando proceso...'}
             </p>
+            {status === 'success' && (
+              <p className="text-amber-400/90 text-xs mt-2 italic">
+                P.D. Si no ves el correo en tu bandeja de entrada, ¡revisa tu carpeta de spam!
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-start space-x-4">
