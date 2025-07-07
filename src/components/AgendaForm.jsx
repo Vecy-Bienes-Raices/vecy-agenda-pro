@@ -168,20 +168,24 @@ const handleSubmit = async (event) => {
     const { error: supabaseError } = await supabase.from('solicitudes').insert([payload]);
     if (supabaseError) throw supabaseError;
 
-    // --- Paso 4: Invocar la Edge Function para enviar el correo ---
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch("https://iqmlenxldsdrxsbegkwf.supabase.co/functions/v1/send-confirmation-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}`, },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("❌ Error al invocar la Edge Function:", errorText);
-      } else console.log("✅ Solicitud de envío de correo procesada exitosamente.");
-    } catch (error) { console.error("❌ Error en la petición a la Edge Function:", error); }
+    // --- ¡MEJORA! Navegar inmediatamente y enviar el correo en segundo plano ---
     navigate('/gracias', { state: { formData } });
+
+    // --- Paso 4: Invocar la Edge Function (sin esperar la respuesta - "Fire and Forget") ---
+    const sendEmailInBackground = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const response = await fetch("https://iqmlenxldsdrxsbegkwf.supabase.co/functions/v1/send-confirmation-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}`, },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          console.error("❌ Error en segundo plano al invocar la Edge Function:", await response.text());
+        } else console.log("✅ Correo enviado exitosamente en segundo plano.");
+      } catch (error) { console.error("❌ Error en la petición de segundo plano a la Edge Function:", error); }
+    };
+    sendEmailInBackground();
   } catch (error) {
     console.error("Error detallado al enviar a Supabase:", error);
     setError(error.message || 'No se pudo completar la solicitud. Revisa tu conexión o inténtalo más tarde.');
