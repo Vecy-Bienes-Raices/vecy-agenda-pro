@@ -174,16 +174,18 @@ const handleSubmit = async (event) => {
     // --- Paso 4: Invocar la Edge Function (sin esperar la respuesta - "Fire and Forget") ---
     const sendEmailInBackground = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const response = await fetch("https://iqmlenxldsdrxsbegkwf.supabase.co/functions/v1/send-confirmation-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}`, },
-          body: JSON.stringify(payload),
+        // --- CORRECCIÓN: Usamos el método invoke de Supabase, que maneja la autenticación anónima automáticamente.
+        const { error: functionError } = await supabase.functions.invoke('send-confirmation-email', {
+          body: payload, // El payload ya es un objeto, no necesita JSON.stringify
         });
-        if (!response.ok) {
-          console.error("❌ Error en segundo plano al invocar la Edge Function:", await response.text());
-        } else console.log("✅ Correo enviado exitosamente en segundo plano.");
-      } catch (error) { console.error("❌ Error en la petición de segundo plano a la Edge Function:", error); }
+        if (functionError) {
+          console.error("❌ Error en segundo plano al invocar la Edge Function:", functionError);
+        } else {
+          console.log("✅ Solicitud de envío de correo procesada exitosamente en segundo plano.");
+        }
+      } catch (error) {
+        console.error("❌ Error en la petición de segundo plano a la Edge Function:", error);
+      }
     };
     sendEmailInBackground();
   } catch (error) {
