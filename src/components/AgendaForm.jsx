@@ -161,6 +161,7 @@ const handleSubmit = async (event) => {
     // --- Paso 2: Preparar el payload con el nuevo ID ---
     const payload = { ...formData, solicitud_id: newSolicitudId, fecha_cita: formData.fecha_cita_bogota ? formData.fecha_cita_bogota.toISOString() : null, cantidad_personas: parseInt(formData.cantidad_personas, 10), };
     delete payload.fecha_cita_bogota;
+    delete payload.firma_digital_archivo; // MEJORA: Eliminar el objeto de archivo no serializable del payload.
     if (payload.solicitante_celular) payload.solicitante_celular = payload.solicitante_celular.replace('+', '');
     Object.keys(payload).forEach(key => { if (typeof payload[key] === 'string') payload[key] = payload[key].trim(); });
 

@@ -5,7 +5,7 @@ import WelcomeScreen from './components/WelcomeScreen';
 import AgendaForm from './components/AgendaForm';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
-import GraciasScreen from './components/GraciasScreen'; // Importamos la pantalla de gracias
+import GraciasScreen from './components/GraciasScreen.jsx'; // MEJORA: Se añade la extensión .jsx y se actualiza el componente
 import DeclineScreen from './components/DeclineScreen.jsx'; // CORRECCIÓN: Se añade la extensión .jsx para ser explícitos
 import ScrollToTop from './components/ScrollToTop'; // 1. Importamos el nuevo componente
 

@@ -1,105 +1,64 @@
-// Archivo: GraciasScreen.jsx (Versión Profesional Simplificada)
-
 import React, { useEffect, useState } from 'react';
-import { useLocation, Link, useNavigate } from 'react-router-dom';
-import { FaWhatsapp, FaSpinner, FaCheckCircle } from 'react-icons/fa';
+import { useLocation, Link } from 'react-router-dom';
 
-// Importamos las imágenes que se usan directamente en esta pantalla
-import confirmacionImg from '/Vecy_confirmacion.png';
-import whatsappIcono from '/icono-whatsapp.png';
+// Un ícono de check animado para dar feedback visual positivo
+function AnimatedCheck() {
+  return (
+    <svg className="h-24 w-24 text-esmeralda mx-auto" viewBox="0 0 52 52">
+      <circle className="stroke-current" cx="26" cy="26" r="25" fill="none" strokeWidth="2" />
+      <path className="stroke-current" fill="none" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+        style={{
+          strokeDasharray: 48,
+          strokeDashoffset: 48,
+          animation: 'draw 0.4s ease-out 0.5s forwards',
+        }}
+        d="M14 27l5.917 5.917L38 18" />
+      <style>{`
+        @keyframes draw {
+          to {
+            stroke-dashoffset: 0;
+          }
+        }
+      `}</style>
+    </svg>
+  );
+}
 
 function GraciasScreen() {
   const location = useLocation();
-  const navigate = useNavigate();
-  // Obtenemos los datos del formulario que nos pasó la página anterior
-  const { formData } = location.state || {};
+  const formData = location.state?.formData;
+  const [showContent, setShowContent] = useState(false);
 
-  // Estado para gestionar los mensajes que ve el usuario
-  const [status, setStatus] = useState('processing'); // Inicia directamente en 'processing'
-  const [feedbackMessage, setFeedbackMessage] = useState('');
-
-  // Obtenemos el nombre y si es agente para usarlo en la UI
-  const nombre = formData?.solicitante_nombre || 'estimado cliente';
-  const esAgente = formData?.solicitante_perfil === 'Agente';
-  const email = formData?.solicitante_email || '';
-
-  // --- CORRECCIÓN: Se elimina la llamada a la red y se reemplaza por una simulación ---
+  // Simula una pequeña carga para que la animación se aprecie y la transición sea suave
   useEffect(() => {
-    // Si no hay datos, redirige al inicio para evitar una pantalla vacía.
-    if (!formData) {
-      navigate('/');
-      return;
-    }
-
-    // 1. Inicia la simulación mostrando el spinner y un mensaje de "procesando" específico y personalizado.
-    const loadingMessage = esAgente
-      ? `Generando y enviando confirmación y contrato al correo ${email}`
-      : `Enviando confirmación al correo ${email}`;
-    setFeedbackMessage(loadingMessage);
-
-    // 2. Simula un retraso de 3 segundos para mejorar la percepción del usuario.
     const timer = setTimeout(() => {
-      // 3. Cambia el estado a "éxito" para mostrar el check y el mensaje final.
-      setStatus('success');
-      const successMessage = esAgente ? '¡Listo! Hemos enviado el contrato a tu correo.' : '¡Listo! Hemos enviado la confirmación a tu correo.';
-      setFeedbackMessage(successMessage);
-    }, 3000);
-
-    // Limpia el temporizador si el usuario navega a otra página antes de que termine.
+      setShowContent(true);
+    }, 3000); // 3 segundos de "procesamiento" simulado
     return () => clearTimeout(timer);
-  }, [formData, navigate, esAgente, email]); // El efecto se ejecuta si cambian los datos o la función de navegación.
+  }, []);
 
-  // Función para mostrar el ícono correcto según el estado
-  const getStatusIcon = () => {
-    switch (status) {
-      case 'processing': return <FaSpinner className="animate-spin text-esmeralda text-2xl mt-1 flex-shrink-0" />;
-      case 'success': return <FaCheckCircle className="text-esmeralda text-2xl mt-1 flex-shrink-0" />;
-      default: return null; // No mostramos nada por defecto.
-    }
-  };
-  
+  const nombreSolicitante = formData?.solicitante_nombre?.split(' ')[0] || 'tú';
+
+  if (!showContent) {
+    return (
+      <div className="text-center transition-opacity duration-500">
+        <h2 className="text-3xl font-bold text-off-white mb-4">Procesando tu solicitud...</h2>
+        <p className="text-off-white/80 mb-8">Estamos finalizando los detalles y preparando todo.</p>
+        <div className="flex justify-center items-center">
+          {/* MEJORA: Spinner con colores de la marca para una apariencia más profesional */}
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-soft-gold/20 border-t-soft-gold"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="text-center text-white animate-fade-in-up flex flex-col items-center">
-      <img src={confirmacionImg} alt="Confirmación de Envío" className="mx-auto w-48 sm:w-64 mb-4" />
-      <h1 className="text-4xl font-bold text-soft-gold mb-4">¡Listo, {nombre}! Solicitud Recibida.</h1>
-      <p className="text-lg text-off-white mb-8 max-w-lg mx-auto">Tu solicitud está en buenas manos. Revisa los siguientes pasos.</p>
-      
-      <div className="space-y-4 text-left max-w-md w-full bg-white/5 p-6 rounded-lg border border-white/10">
-        <h2 className="text-xl font-semibold text-center text-soft-gold mb-4">¿Qué sigue ahora?</h2>
-        
-        <div className="flex items-start space-x-4">
-          {getStatusIcon()}
-          <div>
-            <p className="text-off-white font-bold">
-              {esAgente ? 'Contrato de Colaboración' : 'Confirmación por Correo'}
-            </p>
-            <p className="text-off-white/80 text-sm">
-              {feedbackMessage || 'Iniciando proceso...'}
-            </p>
-            {status === 'success' && (
-              <p className="text-amber-400/90 text-xs mt-2 italic">
-                P.D. Si no ves el correo en tu bandeja de entrada, ¡revisa tu carpeta de spam!
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-start space-x-4">
-          <FaWhatsapp className="text-esmeralda text-2xl mt-1 flex-shrink-0" />
-          <div>
-            <p className="text-off-white font-bold">Contacto por WhatsApp</p>
-            <p className="text-off-white/80 text-sm">Te contactaremos pronto para confirmar los detalles.</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-8 flex flex-col sm:flex-row gap-4 w-full justify-center">
-        <a href="https://wa.link/55f26z" target="_blank" rel="noopener noreferrer" className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 shadow-lg hover:shadow-2xl hover:shadow-green-500/50 flex items-center justify-center gap-2">
-          <img src={whatsappIcono} alt="WhatsApp" className="h-6 w-6" /> Abrir WhatsApp
-        </a>
-      </div>
-      <Link to="/" className="mt-6 text-soft-gold hover:text-white transition-colors duration-300">
-        Volver al Inicio
-      </Link>
+    <div className="text-center transition-opacity duration-700 opacity-100">
+      <AnimatedCheck />
+      <h1 className="text-4xl font-bold text-off-white mt-6 mb-3">¡Gracias, {nombreSolicitante}!</h1>
+      <p className="text-lg text-off-white/80 max-w-2xl mx-auto">Hemos recibido tu solicitud correctamente.</p>
+      <div className="mt-8 bg-black/20 p-6 rounded-lg border border-white/10"><h3 className="font-semibold text-soft-gold text-lg">Siguientes Pasos</h3><p className="text-off-white/80 mt-2">Te hemos enviado un correo de confirmación a <strong className="text-white">{formData?.solicitante_email || 'tu correo'}</strong>.</p><p className="text-sm text-off-white/60 mt-4"><strong>Importante:</strong> El correo puede tardar unos minutos en llegar mientras generamos los documentos necesarios. Por favor, revisa también tu carpeta de correo no deseado (spam).</p></div>
+      <Link to="/" className="mt-10 inline-block bg-soft-gold/80 hover:bg-soft-gold text-volcanic-black font-bold py-3 px-8 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold">Volver al Inicio</Link>
     </div>
   );
 }
