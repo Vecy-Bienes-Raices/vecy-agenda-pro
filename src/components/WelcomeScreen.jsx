@@ -11,7 +11,7 @@ function WelcomeScreen() {
   return (
     <div className="text-center">
       
-      <div className="w-full max-w-xs sm:max-w-sm md:max-w-md mx-auto mb-8">
+      <div className="w-full max-w-[240px] sm:max-w-[280px] md:max-w-xs mx-auto mb-8">
         <img
           src={portadImageUrl}
           alt="Portada de Vecy Agenda"
