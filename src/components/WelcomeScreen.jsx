@@ -36,7 +36,7 @@ function WelcomeScreen() {
           </ul>
           <p className="flex items-start">
             <FaUserShield className="text-soft-gold text-xl mt-1 flex-shrink-0" />
-            <span className="ml-2">Por tu seguridad y la nuestra es clave ingresar datos reales para agilizar el permisos de ingreso.</span>
+            <span className="ml-2">Por tu seguridad y la nuestra es clave ingresar datos reales para agilizar el permiso de ingreso.</span>
           </p>
           <p className="flex items-start">
             <FaRegHandshake className="text-soft-gold text-xl mt-1 flex-shrink-0" />
@@ -51,7 +51,7 @@ function WelcomeScreen() {
       
       <button
         onClick={() => navigate('/formulario')}
-        className="bg-soft-gold/80 hover:bg-soft-gold text-volcanic-black font-bold py-3 px-10 rounded-lg transition-all duration-300 shadow-lg hover:shadow-2xl hover:shadow-luminous-gold"
+        className="bg-soft-gold/80 hover:bg-soft-gold text-volcanic-black font-bold py-3 px-10 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold"
       >
         EMPECEMOS
       </button>
