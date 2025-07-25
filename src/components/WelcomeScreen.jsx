@@ -5,6 +5,14 @@ import { BsInfoCircle } from 'react-icons/bs';
 
 const portadImageUrl = '/Vecy_agenda1.png';
 
+// Pequeño componente para encapsular la lógica de los ítems con icono
+const InfoItem = ({ icon: Icon, children }) => (
+  <p className="flex items-start">
+    <Icon className="text-soft-gold text-xl mt-1 flex-shrink-0" />
+    <span className="ml-2">{children}</span>
+  </p>
+);
+
 function WelcomeScreen() {
   const navigate = useNavigate();
 
@@ -34,16 +42,12 @@ function WelcomeScreen() {
             <li><strong>Cliente directo:</strong> Autoriza, llena tus datos y envía.</li>
             <li><strong>Agente:</strong> Autoriza, llena tus datos y los del cliente, firma y envía.</li>
           </ul>
-          <p className="flex items-start">
-            <FaUserShield className="text-soft-gold text-xl mt-1 flex-shrink-0" />
-            <span className="ml-2">Por tu seguridad y la nuestra es clave ingresar datos reales para agilizar el permiso de ingreso.</span>
-          </p>
-          <p className="flex items-start">
-            <FaRegHandshake className="text-soft-gold text-xl mt-1 flex-shrink-0" />
-            <span className="ml-2">
-              <strong>¡Gracias por confiar en nosotros!</strong>
-            </span>
-          </p>
+          <InfoItem icon={FaUserShield}>
+            Por tu seguridad y la nuestra es clave ingresar datos reales para agilizar el permiso de ingreso.
+          </InfoItem>
+          <InfoItem icon={FaRegHandshake}>
+            <strong>¡Gracias por confiar en nosotros!</strong>
+          </InfoItem>
         </div>
         
         
