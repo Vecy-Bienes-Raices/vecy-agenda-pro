@@ -158,21 +158,39 @@ const handleSubmit = async (event) => {
       throw new Error('No se pudo generar un ID para la solicitud. Inténtalo de nuevo.');
     }
 
-    // --- Paso 2: Preparar el payload con el nuevo ID ---
-    const payload = { ...formData, solicitud_id: newSolicitudId, fecha_cita: formData.fecha_cita_bogota ? formData.fecha_cita_bogota.toISOString() : null, cantidad_personas: parseInt(formData.cantidad_personas, 10), };
+    // --- ¡NUEVO! Paso 2: Formatear la fecha y la hora según los nuevos requisitos ---
+    let fecha_cita_texto = null;
+    let hora_cita = null;
+
+    if (formData.fecha_cita_bogota) {
+      const dateObject = new Date(formData.fecha_cita_bogota);
+      
+      // Formato para fecha_cita_texto: "martes, 29 de julio de 2025"
+      fecha_cita_texto = new Intl.DateTimeFormat('es-ES', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      }).format(dateObject);
+
+      // Formato para hora_cita: "04:30 PM" (Zona horaria de Bogotá)
+      hora_cita = new Intl.DateTimeFormat('en-US', {
+        hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota'
+      }).format(dateObject);
+    }
+
+    // --- Paso 3: Preparar el payload con el nuevo ID y los campos de texto de fecha/hora ---
+    const payload = { ...formData, solicitud_id: newSolicitudId, fecha_cita_texto, hora_cita, cantidad_personas: parseInt(formData.cantidad_personas, 10) };
     delete payload.fecha_cita_bogota;
     delete payload.firma_digital_archivo; // MEJORA: Eliminar el objeto de archivo no serializable del payload.
     if (payload.solicitante_celular) payload.solicitante_celular = payload.solicitante_celular.replace('+', '');
     Object.keys(payload).forEach(key => { if (typeof payload[key] === 'string') payload[key] = payload[key].trim(); });
 
-    // --- Paso 3: Insertar en la base de datos ---
+    // --- Paso 4: Insertar en la base de datos ---
     const { error: supabaseError } = await supabase.from('solicitudes').insert([payload]);
     if (supabaseError) throw supabaseError;
 
     // --- ¡MEJORA! Navegar inmediatamente y enviar el correo en segundo plano ---
     navigate('/gracias', { state: { formData } });
 
-    // --- Paso 4: Invocar la Edge Function (sin esperar la respuesta - "Fire and Forget") ---
+    // --- Paso 5: Invocar la Edge Function (sin esperar la respuesta - "Fire and Forget") ---
     const sendEmailInBackground = async () => {
       try {
         // --- CORRECCIÓN: Usamos el método invoke de Supabase, que maneja la autenticación anónima automáticamente.
