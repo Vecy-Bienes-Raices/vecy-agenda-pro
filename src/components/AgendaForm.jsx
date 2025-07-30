@@ -250,10 +250,13 @@ const handleSubmit = async (event) => {
               {showBusinessOption && (<CustomSelect label="Opción de Negocio" name="opcion_negocio" value={formData.opcion_negocio} onChange={handleChange} options={negocioOptions} placeholder="Selecciona..." error={!!formErrors.opcion_negocio} />)}
               <FormInput value={formData.codigo_inmueble} onChange={handleChange} label="Código del Inmueble o Servicio" id="codigo_inmueble" name="codigo_inmueble" type="text" placeholder="Ej: 110AB" />
             </div>
-            {showVisitDetails && (<div className="transition-all duration-500 ease-in-out mt-6"><div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <CustomDateTimePicker label="Fecha y Hora de la Visita" selected={formData.fecha_cita_bogota} onChange={handleDateChange} error={!!formErrors.fecha_cita_bogota} />
-              <CustomSelect label="¿Cuántas personas ingresarán?" name="cantidad_personas" value={formData.cantidad_personas} onChange={handleChange} options={cantidadPersonasOptions} placeholder="Selecciona una cantidad..." error={!!formErrors.cantidad_personas} />
-            </div></div>)}</fieldset>
+            {/* --- MEJORA: Se ajusta el layout para el nuevo selector de fecha/hora --- */}
+            {showVisitDetails && (
+              <div className="transition-all duration-500 ease-in-out mt-6 flex flex-col gap-6">
+                <CustomDateTimePicker label="Fecha y Hora de la Visita" selected={formData.fecha_cita_bogota} onChange={handleDateChange} error={!!formErrors.fecha_cita_bogota} />
+                <CustomSelect label="¿Cuántas personas ingresarán?" name="cantidad_personas" value={formData.cantidad_personas} onChange={handleChange} options={cantidadPersonasOptions} placeholder="Selecciona una cantidad..." error={!!formErrors.cantidad_personas} />
+              </div>
+            )}</fieldset>
             {showAgentSections && (<>
               <fieldset className="border-t-2 border-soft-gold pt-6 mb-10"><legend className="text-xl font-semibold text-off-white px-2 -ml-2">3. Presenta a tu Cliente</legend><div className="p-4 bg-black/10 rounded-lg mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <CustomSelect label="Tu cliente es:" name="tipo_cliente" value={formData.tipo_cliente} onChange={handleChange} options={tipoClienteOptions} placeholder="Selecciona..." error={!!formErrors.tipo_cliente} />
