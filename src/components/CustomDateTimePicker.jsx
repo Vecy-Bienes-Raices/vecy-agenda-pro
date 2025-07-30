@@ -114,6 +114,16 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
   const errorLabelClasses = 'text-red-400';
   const defaultLabelClasses = 'text-off-white/80';
 
+  // --- ¡NUEVO! Helper para formatear la hora a formato 12h AM/PM ---
+  const formatTimeTo12Hour = (time24) => {
+    const [hour, minute] = time24.split(':');
+    const date = new Date();
+    date.setHours(parseInt(hour, 10), parseInt(minute, 10));
+    // Usamos 'en-US' para el formato AM/PM estándar.
+    // toLocaleTimeString se encargará de la conversión.
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  };
+
   return (
     <div className="flex flex-col w-full">
       <label className={`mb-2 text-sm font-medium transition-colors duration-300 ${error ? errorLabelClasses : defaultLabelClasses}`}>{label}</label>
@@ -215,7 +225,7 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
                     disabled={isDisabled}
                     className={`py-2 px-3 rounded-lg transition-all duration-200 text-sm ${timeBtnClass}`}
                   >
-                    {time}
+                    {formatTimeTo12Hour(time)}
                   </button>
                 );
               })}
