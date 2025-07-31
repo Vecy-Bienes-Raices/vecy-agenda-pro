@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { fetchBookedSlotsForDate } from '../api/mockApi';
 
 // Helper to get the current time in Bogotá (UTC-5), which does not observe DST.
 const getBogotaNow = () => {
@@ -28,33 +29,25 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
   // Estado para almacenar los horarios deshabilitados
   const [disabledTimes, setDisabledTimes] = useState(new Set());
 
-  // --- SIMULACIÓN DE CITAS AGENDADAS ---
-  // En una aplicación real, estos datos vendrían de una API al seleccionar una fecha.
+  // --- MEJORA: Llamada a API simulada para obtener citas ---
   useEffect(() => {
-    if (!selectedDate) return;
+    if (!selectedDate) {
+      setDisabledTimes(new Set());
+      return;
+    }
 
-    // Esta función simula una llamada a la base de datos para el día seleccionado.
-    // Para la demostración, solo se agregan citas si se elige el día 15 del mes.
-    const getBookedAppointmentsForDate = (date) => {
-      if (date.getDate() === 15) {
-        return [
-          new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0), // 9:00 AM
-          new Date(date.getFullYear(), date.getMonth(), date.getDate(), 14, 15), // 2:15 PM
-        ];
-      }
-      return [];
+    const fetchBookedSlots = async () => {
+      // Formatear la fecha a YYYY-MM-DD para la API
+      const dateString = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+      
+      // Llamamos a la API simulada
+      const bookedSlots = await fetchBookedSlotsForDate(dateString);
+      
+      // La API devuelve strings "HH:mm", que es lo que necesitamos.
+      setDisabledTimes(new Set(bookedSlots));
     };
 
-    const bookedAppointments = getBookedAppointmentsForDate(selectedDate);
-    const newDisabledTimes = new Set();
-    bookedAppointments.forEach(booking => {
-      // Bloquear la hora exacta y los 15 minutos posteriores (total 30 min de bloqueo)
-      for (let i = 0; i < 2; i++) {
-        const timeToDisable = new Date(booking.getTime() + i * 15 * 60000);
-        newDisabledTimes.add(`${String(timeToDisable.getHours()).padStart(2, '0')}:${String(timeToDisable.getMinutes()).padStart(2, '0')}`);
-      }
-    });
-    setDisabledTimes(newDisabledTimes);
+    fetchBookedSlots();
   }, [selectedDate]);
 
   // Cuando se selecciona una fecha y una hora, se notifica al formulario padre.
@@ -71,7 +64,7 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
       onChange(null); // Si la selección está incompleta, se envía null.
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, selectedTime]); // << -- CORRECCIÓN APLICADA AQUÍ: Se eliminó 'onChange' del array
+  }, [selectedDate, selectedTime]);
 
   const handleDateSelect = (day) => {
     const newSelectedDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
@@ -114,13 +107,11 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
   const errorLabelClasses = 'text-red-400';
   const defaultLabelClasses = 'text-off-white/80';
 
-  // --- ¡NUEVO! Helper para formatear la hora a formato 12h AM/PM ---
+  // Helper para formatear la hora a formato 12h AM/PM
   const formatTimeTo12Hour = (time24) => {
     const [hour, minute] = time24.split(':');
     const date = new Date();
     date.setHours(parseInt(hour, 10), parseInt(minute, 10));
-    // Usamos 'en-US' para el formato AM/PM estándar.
-    // toLocaleTimeString se encargará de la conversión.
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   };
 
@@ -138,18 +129,15 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
           <button type="button" onClick={() => changeMonth(1)} className="text-2xl text-soft-gold/80 hover:text-soft-gold transition-colors">›</button>
         </div>
 
-        {/* --- MEJORA: Contenedor flexible para vista de escritorio --- */}
+        {/* Contenedor flexible para vista de escritorio */}
         <div className="flex flex-col lg:flex-row lg:gap-6">
           {/* Columna Izquierda: Calendario */}
           <div className="lg:w-[300px] flex-shrink-0">
             <div className="grid grid-cols-7 gap-1 text-center">
               {daysOfWeek.map(day => <div key={day} className="text-xs font-bold text-off-white/50">{day}</div>)}
-              {/* Espacios en blanco para los días antes del 1ro del mes */}
               {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} />)}
-              {/* Días del mes */}
               {Array.from({ length: daysInMonth }).map((_, day) => {
                 const dayNumber = day + 1;
-                // We compare date parts to avoid timezone issues with the `<` operator.
                 const isPast =
                   year < todayInBogota.getFullYear() ||
                   (year === todayInBogota.getFullYear() && month < todayInBogota.getMonth()) ||
@@ -182,14 +170,13 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
           </div>
           </div>
 
-          {/* Columna Derecha: Selector de Hora (aparece al seleccionar una fecha) */}
+          {/* Columna Derecha: Selector de Hora */}
           <div className="flex-grow mt-6 lg:mt-0 lg:border-l lg:border-white/10 lg:pl-6">
             {selectedDate ? (
               <div>
                 <p className="text-center text-sm font-semibold text-off-white/80 mb-3">
                   Selecciona una hora para el {selectedDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}:
                 </p>
-                {/* --- MEJORA: Se usa un grid responsivo y se elimina el scroll para ver todas las horas --- */}
                 <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
                   {timeSlots.map(time => {
                     const isSelected = selectedTime === time;
@@ -225,7 +212,6 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
                         key={time}
                         onClick={() => !isDisabled && setSelectedTime(time)}
                         disabled={isDisabled}
-                        // --- MEJORA: Botones de hora uniformes y texto centrado ---
                         className={`py-2 px-3 rounded-lg transition-all duration-200 text-sm whitespace-nowrap flex items-center justify-center ${timeBtnClass}`}
                       >
                         {formatTimeTo12Hour(time)}
