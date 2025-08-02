@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import Confetti from 'react-confetti';
 
 // Un ícono de check animado para dar feedback visual positivo
 function AnimatedCheck() {
@@ -29,26 +28,14 @@ function GraciasScreen() {
   const location = useLocation();
   const formData = location.state?.formData;
   const [showContent, setShowContent] = useState(false);
-  const [recycleConfetti, setRecycleConfetti] = useState(false);
 
   // Simula una pequeña carga para que la animación se aprecie y la transición sea suave
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowContent(true);
-      setRecycleConfetti(true); // ¡Aquí empieza la fiesta!
     }, 3000); // 3 segundos de "procesamiento" simulado
     return () => clearTimeout(timer);
   }, []);
-
-  // Este efecto se encarga de detener el confeti después de un tiempo.
-  useEffect(() => {
-    if (recycleConfetti) {
-      const stopConfettiTimer = setTimeout(() => {
-        setRecycleConfetti(false);
-      }, 8000); // El confeti dejará de generarse después de 8 segundos.
-      return () => clearTimeout(stopConfettiTimer);
-    }
-  }, [recycleConfetti]);
 
   const nombreSolicitante = formData?.solicitante_nombre?.split(' ')[0] || 'tú';
 
@@ -67,12 +54,6 @@ function GraciasScreen() {
 
   return (
     <div className="text-center transition-opacity duration-700 opacity-100">
-      <Confetti
-        recycle={recycleConfetti}
-        numberOfPieces={250}
-        gravity={0.1}
-        colors={['#D4AF37', '#2ECC71', '#F5F5F5', '#1C1C1C']} // Usamos los colores de la marca: soft-gold, esmeralda, off-white, volcanic-black
-      />
       <AnimatedCheck />
       <h1 className="text-4xl font-bold text-off-white mt-6 mb-3">¡Gracias, {nombreSolicitante}!</h1>
       <p className="text-lg text-off-white/80 max-w-2xl mx-auto">Hemos recibido tu solicitud correctamente.</p>
