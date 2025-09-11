@@ -158,7 +158,7 @@ const handleSubmit = async (event) => {
       throw new Error('No se pudo generar un ID para la solicitud. Inténtalo de nuevo.');
     }
 
-s    // --- Paso 2: Preparar el payload con el nuevo ID ---
+    // --- Paso 2: Preparar el payload con el nuevo ID ---
     const payload = { ...formData, solicitud_id: newSolicitudId };
 
     // --- CORRECCIÓN DEFINITIVA: Formatear fecha y hora para las columnas correctas ---
