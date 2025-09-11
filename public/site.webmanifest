@@ -1,0 +1,22 @@
+{
+  "name": "Vecy Agenda Pro",
+  "short_name": "Vecy Agenda",
+  "description": "Solicita visitas y servicios de forma segura con Vecy Bienes Raíces.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#4b372a",
+  "theme_color": "#4b372a",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
