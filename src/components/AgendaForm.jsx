@@ -158,8 +158,22 @@ const handleSubmit = async (event) => {
       throw new Error('No se pudo generar un ID para la solicitud. Inténtalo de nuevo.');
     }
 
-    // --- Paso 2: Preparar el payload con el nuevo ID ---
-    const payload = { ...formData, solicitud_id: newSolicitudId, fecha_cita: formData.fecha_cita_bogota ? formData.fecha_cita_bogota.toISOString() : null, cantidad_personas: parseInt(formData.cantidad_personas, 10), };
+s    // --- Paso 2: Preparar el payload con el nuevo ID ---
+    const payload = { ...formData, solicitud_id: newSolicitudId };
+
+    // --- CORRECCIÓN DEFINITIVA: Formatear fecha y hora para las columnas correctas ---
+    if (formData.fecha_cita_bogota) {
+      const fechaCitaCompleta = new Date(formData.fecha_cita_bogota);
+      // Formato de fecha: DD/MM/AAAA
+      payload.fecha_cita_texto = fechaCitaCompleta.toLocaleDateString('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric'
+      });
+      // Formato de hora: HH:MM (24h)
+      payload.hora_cita = fechaCitaCompleta.toLocaleTimeString('es-ES', {
+        hour: '2-digit', minute: '2-digit', hour12: false
+      });
+    }
+    if (formData.cantidad_personas) payload.cantidad_personas = parseInt(formData.cantidad_personas, 10);
     delete payload.fecha_cita_bogota;
     delete payload.firma_digital_archivo; // MEJORA: Eliminar el objeto de archivo no serializable del payload.
     if (payload.solicitante_celular) payload.solicitante_celular = payload.solicitante_celular.replace('+', '');
