@@ -1,13 +1,12 @@
-// RUTA: supabase/functions/send-confirmation-email/index.ts
-// VERSIÓN FINAL Y COMPLETA - REEMPLAZA TODO EL CONTENIDO DEL ARCHIVO
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { PDFDocument, rgb, StandardFonts } from 'https://cdn.skypack.dev/pdf-lib@^1.17.1';
+import { PDFDocument, rgb, StandardFonts } from 'https://esm.sh/pdf-lib@1.17.1';
 import { encode, decode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+import nodemailer from "npm:nodemailer@6.9.13";
 
 // ================== 1. DATOS Y CONSTANTES ==================
-const SENDGRID_API_KEY = Deno.env.get("SENDGRID_API_KEY");
+const GMAIL_USER = Deno.env.get("GMAIL_USER");
+const GMAIL_APP_PASSWORD = Deno.env.get("GMAIL_APP_PASSWORD");
 const VECY_INTERNAL_EMAIL = Deno.env.get("VECY_INTERNAL_EMAIL");
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -26,7 +25,7 @@ serve(async (req) => {
 
   try {
     const formData = await req.json();
-    const { solicitante_perfil, solicitud_id, solicitante_email } = formData;
+    const { solicitante_perfil, solicitud_id, solicitante_email, solicitante_nombre, servicio_solicitado } = formData;
 
     let pdfBytes = null;
     let pdfAttachment = null;
@@ -35,9 +34,9 @@ serve(async (req) => {
     if (solicitante_perfil === 'Agente') {
       console.log(`[${solicitud_id}] Perfil Agente detectado. Iniciando generación de PDF.`);
       pdfBytes = await createContractPdf(formData);
-      
+
       const pdfFileName = `Contrato_Puntas_${solicitud_id}_${formData.solicitante_nombre.replace(/\s/g, '_')}.pdf`;
-      
+
       pdfAttachment = {
         content: encode(pdfBytes),
         filename: pdfFileName,
@@ -59,11 +58,24 @@ serve(async (req) => {
 
     await sendEmail(
       solicitante_email,
-      VECY_INTERNAL_EMAIL, // Correo para la copia oculta (BCC)
+      null, // Sin BCC para el cliente
       subject,
       html,
       pdfAttachment ? [pdfAttachment] : []
     );
+
+    // 2. Correo para VECY (Admin) con resumen de datos y PDF
+    const adminContent = getAdminEmailContent(formData);
+    await sendEmail(
+      VECY_INTERNAL_EMAIL,
+      null,
+      `🔔 Nueva Solicitud #${solicitud_id} - ${solicitante_perfil}`,
+      adminContent.html,
+      pdfAttachment ? [pdfAttachment] : [] // También se adjunta el PDF al admin
+    );
+
+    // 3. Notificación WhatsApp
+    await sendWhatsAppNotification(formData);
 
     console.log(`[${solicitud_id}] Correo enviado a ${solicitante_email} con BCC a ${VECY_INTERNAL_EMAIL}.`);
 
@@ -84,40 +96,204 @@ serve(async (req) => {
 // ================== 3. LÓGICA DE CORREOS ==================
 
 function getEmailContent(formData) {
-  const { solicitante_nombre, solicitante_perfil, solicitud_id, servicio_solicitado } = formData;
+  const { solicitante_nombre, solicitante_perfil, solicitud_id, servicio_solicitado, opcion_negocio, codigo_inmueble, fecha_cita_texto, solicitante_email, hora_cita } = formData;
   const logoUrlParaEmail = 'https://i.imgur.com/3Yzqg4n.png';
 
-  const baseHtml = (title, bodyContent) => `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style> @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap'); body { font-family: 'Poppins', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; } .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.07); border: 1px solid #e1e1e1; } .header { background-color: #1A1A1A; padding: 30px; text-align: center; } .header img { max-width: 120px; } .content { padding: 35px 40px; color: #333333; } .content h2 { color: #1A1A1A; font-size: 22px; margin-top: 0; font-weight: 700; } .content p { font-size: 16px; line-height: 1.7; margin-bottom: 20px; } .highlight { background-color: #f7f7f7; padding: 15px 20px; border-left: 4px solid #F47721; margin-top: 25px; border-radius: 4px; } .highlight p { font-size: 15px; margin: 0; } .footer { background-color: #1A1A1A; padding: 20px; text-align: center; font-size: 12px; color: #aaaaaa; } .footer a { color: #F47721; text-decoration: none; } </style></head><body><div class="container"><div class="header"><img src="${logoUrlParaEmail}" alt="Vecy Bienes Raíces Logo"></div><div class="content"><h2>${title}</h2>${bodyContent}</div><div class="footer"><p>Vecy Bienes Raíces S.A.S. © ${new Date().getFullYear()}</p><p><a href="https://vecy.com.co" target="_blank">vecy.com.co</a></p></div></div></body></html>`;
+  // Fecha y hora actuales para el texto del correo
+  const now = new Date();
+  const fechaActual = new Intl.DateTimeFormat('es-CO', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Bogota' }).format(now);
+  const horaActual = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' }).format(now);
+
+  const baseHtml = (title, bodyContent) => `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style> @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap'); body { font-family: 'Poppins', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; } .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.07); border: 1px solid #e1e1e1; } .header { background-color: #3E2723; padding: 30px; text-align: center; } .header img { max-width: 120px; } .content { padding: 35px 40px; color: #333333; } .content h2 { color: #3E2723; font-size: 22px; margin-top: 0; font-weight: 700; } .content p { font-size: 16px; line-height: 1.7; margin-bottom: 20px; } .highlight { background-color: #fcfcfc; padding: 15px 20px; border-left: 4px solid #D4AF37; margin-top: 25px; border-radius: 4px; } .highlight p { font-size: 15px; margin: 0; } .footer { background-color: #3E2723; padding: 20px; text-align: center; font-size: 12px; color: #d7ccc8; } .footer a { color: #D4AF37; text-decoration: none; } </style></head><body><div class="container"><div class="header"><img src="${logoUrlParaEmail}" alt="Vecy Bienes Raíces Logo"></div><div class="content"><h2>${title}</h2>${bodyContent}</div><div class="footer"><p>Vecy Bienes Raíces S.A.S. © ${new Date().getFullYear()}</p><p><a href="https://vecy.com.co" target="_blank">vecy.com.co</a></p></div></div></body></html>`;
 
   const subject = `✅ Solicitud #${solicitud_id} Recibida | Vecy Agenda`;
-  const title = `¡Hola, ${solicitante_nombre}! Hemos recibido tu solicitud.`;
-  let body = `<p>Confirmamos la recepción de tu solicitud para el servicio de <strong>"${servicio_solicitado}"</strong>.</p><p>Nuestro equipo la revisará y se pondrá en contacto contigo a la brevedad.</p><div class="highlight"><p><strong>ID de Solicitud: ${solicitud_id}</strong></p></div>`;
+  const title = `¡Hola, ${solicitante_nombre}! Hemos recibido tu solicitud 🏠✨`;
+
+  let body = `
+    <p>Confirmamos la recepción de tu solicitud para <strong>"${servicio_solicitado}"</strong> en <strong>${opcion_negocio || 'trámite'}</strong> identificado con el código <strong>${codigo_inmueble || 'N/A'}</strong>, para la fecha del <strong>${fecha_cita_texto || 'fecha por confirmar'}</strong> a las <strong>${hora_cita || 'hora por confirmar'}</strong>. 📅</p>
+    
+    <p>Nuestro equipo revisará la fidelidad de todos los datos y, una vez verificados, te enviaremos un correo a <strong>${solicitante_email}</strong> con la confirmación del agendamiento y la dirección completa del inmueble. ¡Debes estar pendiente! 📩👀</p>
+    
+    <div class="highlight"><p><strong>ID de Solicitud: ${solicitud_id}</strong></p></div>
+  `;
+
   if (solicitante_perfil === 'Agente') {
-    body += `<p style="margin-top: 20px;">Como agente, hemos adjuntado a este correo el contrato de colaboración generado. ¡Gracias por tu confianza!</p>`;
+    body += `
+      <p style="margin-top: 20px;">Como agente, hemos adjuntado a este correo el contrato de colaboración <strong>No. ${solicitud_id}</strong> firmado virtualmente hoy <strong>${fechaActual}</strong> a las <strong>${horaActual}</strong> a través de nuestro formulario. ✍️📄</p>
+      <p>Estamos seguros de que todo saldrá bien y será un cierre perfecto. ¡Gracias por tu confianza! 🤝🚀</p>
+    `;
   }
   return { subject, html: baseHtml(title, body) };
 }
 
-async function sendEmail(to, bcc, subject, html, attachments = []) {
-  const emailData = {
-    personalizations: [{
-      to: [{ email: to }],
-      bcc: bcc ? [{ email: bcc }] : [],
-    }],
-    from: { email: 'vecybienesraices@gmail.com', name: 'Vecy Bienes Raíces' },
-    subject,
-    content: [{ type: 'text/html', value: html }],
-    attachments,
-  };
-  const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(emailData),
-  });
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`SendGrid falló al enviar a ${to}: ${errorBody}`);
+function getAdminEmailContent(formData) {
+  const { solicitud_id, solicitante_nombre } = formData;
+  const logoUrlParaEmail = 'https://i.imgur.com/3Yzqg4n.png';
+
+  // Construir tabla de datos
+  let rows = '';
+  for (const [key, value] of Object.entries(formData)) {
+    // Omitir campos muy largos o internos
+    if (key === 'firma_virtual_base64' || key === 'firma_digital_archivo' || key === 'autorizacion') continue;
+
+    let displayValue = value;
+    if (value === null || value === undefined) displayValue = '<em>Vacío</em>';
+
+    rows += `
+      <tr>
+        <td style="padding: 8px; border-bottom: 1px solid #ddd; font-weight: bold; width: 40%;">${key.replace(/_/g, ' ')}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${displayValue}</td>
+      </tr>
+    `;
   }
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px; }
+        .container { background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header img { max-width: 100px; }
+        h2 { color: #333; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        th { background-color: #f47721; color: white; padding: 10px; text-align: left; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <img src="${logoUrlParaEmail}" alt="Logo Vecy">
+        </div>
+        <h2>Nueva Solicitud Recibida #${solicitud_id}</h2>
+        <p><strong>Solicitante:</strong> ${solicitante_nombre}</p>
+        <p>A continuación, el resumen de los datos ingresados en el formulario:</p>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+        
+        <p style="text-align: center; margin-top: 30px; font-size: 12px; color: #888;">
+          Este es un correo automático del sistema interno de Vecy Agenda.
+        </p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return { html };
+}
+
+// ================== 4. NOTIFICACIÓN WHATSAPP (CallMeBot) ==================
+
+async function sendWhatsAppNotification(formData) {
+  const {
+    solicitud_id, solicitante_nombre, solicitante_perfil, solicitante_numero_documento, solicitante_tipo_documento, solicitante_email, solicitante_celular,
+    servicio_solicitado, codigo_inmueble, opcion_negocio, fecha_cita_texto, hora_cita, cantidad_personas,
+    interesado_nombre, interesado_tipo_documento, interesado_documento, tipo_cliente
+  } = formData;
+
+  const phone = '+573166569719';
+  const apiKey = '5026635';
+
+  // Limpiar numero celular del solicitante para el link (quitar espacios o chars raros)
+  const solicitanteCelularLimpio = solicitante_celular ? solicitante_celular.replace(/\D/g, '') : '';
+
+  // Mensaje para contactar al cliente (Texto completo y formateado)
+  // Nota: WhatsApp web/app soporta cierto formateo básico en el texto predefinido (*bold*), pero no html.
+  const mensajeContacto = `¡Hola! 👋 Somos *Vecy Bienes Raíces*. Recibimos tu solicitud para: *${servicio_solicitado}* del inmueble *${codigo_inmueble || 'N/A'}*. 🏠 Confirmamos tu cita para el *${fecha_cita_texto || 'fecha por confirmar'}* a las *${hora_cita || 'hora por confirmar'}*.`;
+
+  const waLink = `https://wa.me/${solicitanteCelularLimpio}?text=${encodeURIComponent(mensajeContacto)}`;
+
+  const text = `🔔 *Nueva Solicitud VECY* 🔔
+
+👤 *Solicitante*
+*Perfil:* ${solicitante_perfil || 'N/A'}
+*Nombre:* ${solicitante_nombre || 'N/A'}
+*Doc: ${solicitante_tipo_documento || 'Doc'}:* ${solicitante_numero_documento || ''}
+🆔 *ID:* ${solicitud_id}
+✉ *Correo*: ${solicitante_email || 'N/A'}
+📞 *Celular:* ${solicitante_celular || 'N/A'}
+
+🏠 *Solicitud*
+*Servicio:* ${servicio_solicitado || 'N/A'}
+*Código:* ${codigo_inmueble || 'N/A'}
+*Negocio:* ${opcion_negocio || 'N/A'}
+*Fecha:* ${fecha_cita_texto || 'N/A'}
+*Hora:* ${hora_cita || 'N/A'}
+*Personas:* ${cantidad_personas || 'N/A'}
+
+👥 *Cliente*
+*Tipo:* ${tipo_cliente || 'N/A'}
+*Nombre:* ${interesado_nombre || 'N/A'}
+*Doc: ${interesado_tipo_documento || 'Doc'}* ${interesado_documento || ''}
+
+👇 *Contactar al Cliente* 👇
+Clic para contactar al cliente:
+${waLink}`;
+
+  // CallMeBot espera el texto URL encoded
+  const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(text)}&apikey=${apiKey}`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error(`Error al enviar WhatsApp: ${response.statusText}`);
+    } else {
+      console.log(`WhatsApp enviado a ${phone}`);
+    }
+  } catch (error) {
+    console.error("Error en fetch WhatsApp:", error);
+  }
+}
+
+async function sendEmail(to, bcc, subject, html, attachments = []) {
+  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
+    throw new Error("Faltan las credenciales de Gmail (GMAIL_USER, GMAIL_APP_PASSWORD)");
+  }
+
+  console.log("Intentando conectar a SMTP Gmail (puerto 587)...");
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // TLS
+    requireTLS: true,
+    logger: true,
+    debug: true,
+    auth: {
+      user: GMAIL_USER,
+      pass: GMAIL_APP_PASSWORD,
+    },
+  });
+
+  // Mapear adjuntos al formato de Nodemailer
+  const nodeMailerAttachments = attachments.map(att => ({
+    filename: att.filename,
+    content: att.content, // base64 string
+    encoding: 'base64',
+    contentType: att.type
+  }));
+
+  const mailOptions = {
+    from: `"Vecy Bienes Raíces" <${GMAIL_USER}>`,
+    to: to,
+    bcc: bcc,
+    subject: subject,
+    html: html,
+    attachments: nodeMailerAttachments,
+  };
+
+  await transporter.sendMail(mailOptions);
 }
 
 // ================== 4. LÓGICA DE PDF Y STORAGE ==================
@@ -150,35 +326,79 @@ async function createContractPdf(formData) {
     return currentY;
   };
 
-  const drawWrappedText = (text, options) => {
-    let { y: currentY, font: currentFont, size, x, width: textWidth, lineHeight, color } = options;
-    const paragraphs = text.split('\n');
-    for (const paragraph of paragraphs) {
-      const words = paragraph.split(' ');
-      let line = '';
-      for (const word of words) {
-        const testLine = line + word + ' ';
-        if (currentFont.widthOfTextAtSize(testLine, size) > textWidth && line.length > 0) {
+  const clean = (val: any): string => String(val || '').replace(/[{}]/g, '');
+
+  const drawRichText = (segments, options) => {
+    let { y: currentY, x: startX, width: maxWidth, lineHeight } = options;
+    let currentX = startX;
+
+    for (const segment of segments) {
+      const segFont = segment.font || font;
+      const segSize = segment.size || 10;
+      const segColor = segment.color || black;
+
+      // Manejo de saltos de línea explícitos en el texto del segmento
+      const lines = segment.text.split('\n');
+
+      for (let i = 0; i < lines.length; i++) {
+        const lineStr = lines[i];
+
+        // Si no es la primera línea del segmento, forzamos un salto de línea (era un \n)
+        if (i > 0) {
           currentY = checkAndAddPage(currentY, lineHeight);
-          currentPage.drawText(line, { x, y: currentY, font: currentFont, size, color });
-          line = word + ' ';
+          currentX = startX;
           currentY -= lineHeight;
-        } else {
-          line = testLine;
+        }
+
+        const words = lineStr.split(' ');
+
+        for (let j = 0; j < words.length; j++) {
+          const word = words[j];
+          // Determinamos si necesitamos un espacio antes de la palabra
+          // Si es la primera palabra de la línea Y estamos al inicio de X, no espacio.
+          // Si es la primera palabra del segmento (j=0) y i=0, depende de si el segmento anterior dejó un espacio?
+          // Simplificación: Asumimos que los espacios están en el string text.
+          // Re-pensando: split(' ') elimina los espacios. Debemos reconstruirlos.
+          // Mejor: split(/(\s+)/) para mantener separadores? O simplemente checkear el ancho.
+
+          // Lógica estándar de wrapping:
+          // Si la palabra cabe, dibujarla. Si no, salto de línea.
+          // El espacio: si j < words.length - 1, agregar espacio al dibujar (o medir).
+          // Pero esto es complejo mixing fonts.
+
+          // Enfoque simplificado que funciona para la mayoría de casos occidentales:
+          // Simular espacio si no es el inicio de línea.
+          const prefix = (currentX === startX) ? '' : ' ';
+          const wordToDraw = word;
+
+          // Medir palabra con espacio previo si aplica, para ver si cabe
+          const widthWithPrefix = segFont.widthOfTextAtSize(prefix + wordToDraw, segSize);
+
+          if (currentX + widthWithPrefix > startX + maxWidth) {
+            // Salto de línea
+            currentY = checkAndAddPage(currentY, lineHeight);
+            currentX = startX;
+            currentY -= lineHeight;
+
+            // Al inicio de nueva línea, no space prefix
+            currentPage.drawText(wordToDraw, { x: currentX, y: currentY, font: segFont, size: segSize, color: segColor });
+            currentX += segFont.widthOfTextAtSize(wordToDraw, segSize);
+          } else {
+            // Cabe en la línea actual
+            currentPage.drawText(prefix + wordToDraw, { x: currentX, y: currentY, font: segFont, size: segSize, color: segColor });
+            currentX += widthWithPrefix;
+          }
         }
       }
-      currentY = checkAndAddPage(currentY, lineHeight);
-      currentPage.drawText(line, { x, y: currentY, font: currentFont, size, color });
-      currentY -= lineHeight;
     }
     return currentY;
   };
 
-  const drawClause = (title, content, currentY) => {
+  const drawClause = (title: string, segments: RichTextSegment[], currentY: number): number => {
     currentY = checkAndAddPage(currentY, 32);
     currentPage.drawText(title, { x: margin, y: currentY, font: boldFont, size: 11, color: black });
     currentY -= 18;
-    currentY = drawWrappedText(content, { y: currentY, font, size: 10, x: margin, width: width - margin * 2, lineHeight: 14, color: black });
+    currentY = drawRichText(segments, { y: currentY, x: margin, width: width - margin * 2, lineHeight: 14 });
     return currentY - 10;
   };
 
@@ -188,7 +408,7 @@ async function createContractPdf(formData) {
     const vecyLogoImage = await pdfDoc.embedJpg(logoBytes);
     currentPage.drawImage(vecyLogoImage, { x: margin, y: y - 25, width: 50, height: 50 });
   } catch (e) { console.error("Error al incrustar el logo de Vecy en el PDF.", e.message); }
-  
+
   currentPage.drawText('CONTRATO DE PUNTAS COMPARTIDAS', { x: margin + 70, y: y, font: boldFont, size: 16, color: black });
   currentPage.drawText('Acuerdo de Colaboración Inmobiliaria', { x: margin + 70, y: y - 18, font: font, size: 11, color: gray });
 
@@ -203,40 +423,67 @@ async function createContractPdf(formData) {
   const visitDate = formData.fecha_cita ? new Date(formData.fecha_cita).toLocaleString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' }) : 'No especificada';
   const generationDate = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Bogota' });
 
-  const introText = `Entre los suscritos a saber, por una parte, JANI ALVES SOUZA, mayor de edad, identificada con cédula de ciudadanía No. 41.057.506, actuando en representación de VECY BIENES RAÍCES, quien en adelante se denominará EL AGENTE 1; y por la otra parte, ${formData.solicitante_nombre}, mayor de edad, identificado(a) con ${formData.solicitante_tipo_documento} No. ${formData.solicitante_numero_documento}, quien en adelante se denominará EL AGENTE 2, se celebra el presente contrato de colaboración inmobiliaria, regido por las siguientes cláusulas:`;
-  y = drawWrappedText(introText, { y, font, size: 10, x: margin, width: width - margin * 2, lineHeight: 14, color: black });
+  const introSegments = [
+    { text: 'Entre los suscritos a saber, por una parte, JANI ALVES SOUZA, mayor de edad, identificada con cédula de ciudadanía No. 41.057.506, actuando en representación de VECY BIENES RAÍCES, quien en adelante se denominará EL AGENTE 1; y por la otra parte, ', font },
+    { text: clean(formData.solicitante_nombre), font: boldFont },
+    { text: ', mayor de edad, identificado(a) con ', font },
+    { text: clean(formData.solicitante_tipo_documento), font: boldFont },
+    { text: ' No. ', font },
+    { text: clean(formData.solicitante_numero_documento), font: boldFont },
+    { text: ', quien en adelante se denominará EL AGENTE 2, se celebra el presente contrato de colaboración inmobiliaria, regido por las siguientes cláusulas:', font }
+  ];
+  y = drawRichText(introSegments, { y, x: margin, width: width - margin * 2, lineHeight: 14 });
   y -= 15;
 
   // --- CLÁUSULAS ---
-  const clausula1 = `El presente contrato tiene por objeto establecer los términos de colaboración entre EL AGENTE 1 y EL AGENTE 2 para promover, gestionar y/o contribuir en la intermediación del negocio inmobiliario relacionado con el inmueble identificado con el código ${formData.codigo_inmueble || 'N/A'}, donde EL AGENTE 2 mediante el formulario No. ${formData.solicitud_id}, solicita al AGENTE 1 "${formData.servicio_solicitado}" para el día ${visitDate}, en favor del cliente ${formData.interesado_nombre}, identificado(a) con ${formData.interesado_tipo_documento} No. ${formData.interesado_documento}.`;
+  // --- CLÁUSULAS ---
+  const clausula1 = [
+    { text: 'El presente contrato tiene por objeto establecer los términos de colaboración entre EL AGENTE 1 y EL AGENTE 2 para promover, gestionar y/o contribuir en la intermediación del negocio inmobiliario relacionado con el inmueble identificado con el código ', font },
+    { text: clean(formData.codigo_inmueble || 'N/A'), font: boldFont },
+    { text: ', donde EL AGENTE 2 mediante el formulario No. ', font },
+    { text: clean(formData.solicitud_id), font: boldFont },
+    { text: ', solicita al AGENTE 1 "', font },
+    { text: clean(formData.servicio_solicitado), font: boldFont },
+    { text: '" en ', font },
+    { text: clean(formData.opcion_negocio || 'tipo de operación'), font: boldFont },
+    { text: ' para la fecha ', font },
+    { text: clean(formData.fecha_cita_texto || visitDate), font: boldFont },
+    { text: ', en favor del cliente ', font },
+    { text: clean(formData.interesado_nombre), font: boldFont },
+    { text: ', identificado(a) con ', font },
+    { text: clean(formData.interesado_tipo_documento), font: boldFont },
+    { text: ' No. ', font },
+    { text: clean(formData.interesado_documento), font: boldFont },
+    { text: '.', font }
+  ];
   y = drawClause('CLÁUSULA PRIMERA: OBJETO', clausula1, y);
 
-  const clausula2 = `Los honorarios derivados del negocio serán distribuidos en partes iguales (50% para cada parte), salvo pacto distinto por escrito. Si EL AGENTE 2 únicamente refiere al cliente o la punta que tiene al cliente sin participar activamente en visitas, negociaciones o acompañamiento, su comisión será del 20%.`;
+  const clausula2 = [{ text: 'Los honorarios derivados del negocio serán distribuidos en partes iguales (50% para cada parte), salvo pacto distinto por escrito. Si EL AGENTE 2 únicamente refiere al cliente o la punta que tiene al cliente sin participar activamente en visitas, negociaciones o acompañamiento, su comisión será del 20%.', font }];
   y = drawClause('CLÁUSULA SEGUNDA: HONORARIOS', clausula2, y);
 
-  const clausula3 = `Obligaciones de EL AGENTE 1:\n• Promocionar el inmueble y mostrarlo a los interesados referidos por EL AGENTE 2.\n• Proporcionar la documentación e información necesarias para el cierre del negocio.\n• Coordinar las visitas y diligencias conjuntas.\n• Velar por el cumplimiento legal y ético de la gestión inmobiliaria.\n\nObligaciones de EL AGENTE 2:\n• Presentar prospectos reales y debidamente identificados.\n• Acompañar las visitas, negociaciones y cierre cuando sea requerido.\n• Colaborar activamente con la gestión del negocio, incluyendo la entrega de documentos y seguimiento.\n• Respetar el canal de comunicación institucional, absteniéndose de realizar acuerdos o negociaciones directamente con los clientes o propietarios sin previa autorización expresa y escrita de EL AGENTE 1.`;
+  const clausula3 = [{ text: 'Obligaciones de EL AGENTE 1:\n• Promocionar el inmueble y mostrarlo a los interesados referidos por EL AGENTE 2.\n• Proporcionar la documentación e información necesarias para el cierre del negocio.\n• Coordinar las visitas y diligencias conjuntas.\n• Velar por el cumplimiento legal y ético de la gestión inmobiliaria.\n\nObligaciones de EL AGENTE 2:\n• Presentar prospectos reales y debidamente identificados.\n• Acompañar las visitas, negociaciones y cierre cuando sea requerido.\n• Colaborar activamente con la gestión del negocio, incluyendo la entrega de documentos y seguimiento.\n• Respetar el canal de comunicación institucional, absteniéndose de realizar acuerdos o negociaciones directamente con los clientes o propietarios sin previa autorización expresa y escrita de EL AGENTE 1.', font }];
   y = drawClause('CLÁUSULA TERCERA: OBLIGACIONES DE LAS PARTES', clausula3, y);
 
-  const clausula4 = `El presente contrato tendrá una duración de tres (3) meses contados a partir de la fecha de su emisión o firma digital. En caso de que el negocio inmobiliario se materialice antes del vencimiento de este término, el acuerdo continuará vigente hasta su culminación.`;
+  const clausula4 = [{ text: 'El presente contrato tendrá una duración de tres (3) meses contados a partir de la fecha de su emisión o firma digital. En caso de que el negocio inmobiliario se materialice antes del vencimiento de este término, el acuerdo continuará vigente hasta su culminación.', font }];
   y = drawClause('CLÁUSULA CUARTA: DURACIÓN', clausula4, y);
 
-  const clausula5 = `Las partes se obligan a mantener en estricta reserva la información confidencial a la que tengan acceso con ocasión de este contrato. Cualquier solicitud, comunicación o modificación relacionada con el inmueble y/o sus propietarios deberá gestionarse exclusivamente a través de EL AGENTE 1, quien es el interlocutor autorizado ante el cliente y titular del encargo profesional.`;
+  const clausula5 = [{ text: 'Las partes se obligan a mantener en estricta reserva la información confidencial a la que tengan acceso con ocasión de este contrato. Cualquier solicitud, comunicación o modificación relacionada con el inmueble y/o sus propietarios deberá gestionarse exclusivamente a través de EL AGENTE 1, quien es el interlocutor autorizado ante el cliente y titular del encargo profesional.', font }];
   y = drawClause('CLÁUSULA QUINTA: CONFIDENCIALIDAD Y CONDUCTO REGULAR', clausula5, y);
 
-  const clausula6 = `El incumplimiento de cualquiera de las obligaciones aquí establecidas dará lugar a una sanción equivalente al 100% de la comisión pactada a favor de la parte cumplida, sin perjuicio de las acciones legales que puedan derivarse por daños y perjuicios, conforme a lo dispuesto en el Código Civil y el Código de Comercio.`;
+  const clausula6 = [{ text: 'El incumplimiento de cualquiera de las obligaciones aquí establecidas dará lugar a una sanción equivalente al 100% de la comisión pactada a favor de la parte cumplida, sin perjuicio de las acciones legales que puedan derivarse por daños y perjuicios, conforme a lo dispuesto en el Código Civil y el Código de Comercio.', font }];
   y = drawClause('CLÁUSULA SEXTA: INCUMPLIMIENTO Y PENALIDAD', clausula6, y);
 
-  const clausula7 = `Este contrato tiene plena validez jurídica desde el momento de su emisión digital. Las firmas digitales, electrónicas o manuscritas escaneadas se entienden como aceptadas por las partes y son válidas conforme a la Ley 527 de 1999 y las normas que regulan el comercio electrónico en Colombia.`;
+  const clausula7 = [{ text: 'Este contrato tiene plena validez jurídica desde el momento de su emisión digital. Las firmas digitales, electrónicas o manuscritas escaneadas se entienden como aceptadas por las partes y son válidas conforme a la Ley 527 de 1999 y las normas que regulan el comercio electrónico en Colombia.', font }];
   y = drawClause('CLÁUSULA SÉPTIMA: VALIDEZ Y FIRMA DIGITAL', clausula7, y);
 
   // --- FIRMAS ---
   y = checkAndAddPage(y, 150);
   const firmaText = `En constancia de lo anterior, las partes firman el presente documento el día ${generationDate}.`;
-  y = drawWrappedText(firmaText, { y, font, size: 10, x: margin, width: width - margin * 2, lineHeight: 14, color: black });
+  y = drawRichText([{ text: firmaText, font }], { y, x: margin, width: width - margin * 2, lineHeight: 14 });
   y -= 30;
 
   const firmaY = y;
-  
+
   // --- Lógica de firma simétrica ---
   const signatureBox = { width: 120, height: 50 };
   const calculateDims = (img, maxWidth, maxHeight) => {
@@ -255,8 +502,8 @@ async function createContractPdf(formData) {
       width: janiDims.width,
       height: janiDims.height,
     });
-  } catch(e) { console.error("Error al incrustar la firma de Jani:", e.message); }
-  
+  } catch (e) { console.error("Error al incrustar la firma de Jani:", e.message); }
+
   currentPage.drawLine({ start: { x: margin, y: firmaY - 35 }, end: { x: margin + 200, y: firmaY - 35 }, thickness: 0.5, color: black });
   currentPage.drawText('JANI ALVES SOUZA', { x: margin + 40, y: firmaY - 48, font: boldFont, size: 9 });
   currentPage.drawText('C.C. 41.057.506', { x: margin + 50, y: firmaY - 58, font, size: 8 });
@@ -289,7 +536,7 @@ async function createContractPdf(formData) {
       console.error(`[${formData.solicitud_id}] Error crítico al incrustar la firma del agente:`, e.message);
     }
   }
-  
+
   currentPage.drawLine({ start: { x: agentSignatureX, y: firmaY - 35 }, end: { x: width - margin, y: firmaY - 35 }, thickness: 0.5, color: black });
   currentPage.drawText(formData.solicitante_nombre.toUpperCase(), { x: agentSignatureX, y: firmaY - 48, font: boldFont, size: 9, maxWidth: 200 });
   currentPage.drawText(`${formData.solicitante_tipo_documento} No. ${formData.solicitante_numero_documento}`, { x: agentSignatureX, y: firmaY - 58, font, size: 8 });
