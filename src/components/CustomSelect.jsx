@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useRef, useId } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 function CustomSelect({ label, options, value, onChange, name, placeholder = "Selecciona...", error }) {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef(null);
-  const buttonRef = useRef(null);
-  const labelId = useId(); // Genera un ID único para la etiqueta
 
   const selectedOption = options.find(option => option.value === value);
   const displayValue = selectedOption ? selectedOption.label : placeholder;
@@ -27,24 +25,6 @@ function CustomSelect({ label, options, value, onChange, name, placeholder = "Se
     };
   }, [wrapperRef]);
 
-  // Cierra el menú con la tecla 'Escape'
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-        buttonRef.current?.focus(); // Devuelve el foco al botón
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen]);
-
   const handleOptionClick = (optionValue) => {
     // Simulamos el objeto 'event' que espera la función handleChange del formulario
     onChange({ target: { name, value: optionValue } });
@@ -53,16 +33,12 @@ function CustomSelect({ label, options, value, onChange, name, placeholder = "Se
 
   return (
     <div className="relative" ref={wrapperRef}>
-      <label id={labelId} className={`block text-sm font-medium mb-1 transition-colors duration-300 ${error ? errorLabelClasses : defaultLabelClasses}`}>
+      <label className={`block text-sm font-medium mb-1 transition-colors duration-300 ${error ? errorLabelClasses : defaultLabelClasses}`}>
         {label}
       </label>
       <button
         type="button"
-        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        aria-labelledby={labelId}
         className={`w-full p-3 bg-white text-grafito border rounded-lg focus:ring-2 transition text-left flex justify-between items-center ${error ? errorButtonClasses : defaultButtonClasses}`}
       >
         <span className={selectedOption ? 'text-grafito' : 'text-gray-400'}>{displayValue}</span>
@@ -72,18 +48,11 @@ function CustomSelect({ label, options, value, onChange, name, placeholder = "Se
       </button>
 
       {isOpen && (
-        <div
-          role="listbox"
-          aria-labelledby={labelId}
-          className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto focus:outline-none"
-          tabIndex={-1}
-        >
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
           {options.map((option) => (
             <button
               key={option.value}
               type="button"
-              role="option"
-              aria-selected={value === option.value}
               onClick={() => handleOptionClick(option.value)}
               className="w-full text-left px-4 py-2 text-grafito hover:bg-esmeralda hover:text-white transition-colors disabled:bg-gray-100 disabled:text-gray-400"
               disabled={option.disabled}

@@ -21,9 +21,7 @@ const Layout = ({ children }) => (
 // El director de orquesta final
 function App() {
   return (
-    // --- MEJORA: Se añaden las "future flags" para React Router v7 ---
-    // Esto elimina las advertencias en la consola y prepara la app para futuras actualizaciones.
-    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <Router>
       <Layout>
         <ScrollToTop /> {/* 2. Lo añadimos aquí para que se aplique a todas las rutas */}
         <Routes>

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { fetchBookedSlotsForDate } from '../api/mockApi';
 
 // Helper to get the current time in Bogotá (UTC-5), which does not observe DST.
 const getBogotaNow = () => {
@@ -29,25 +28,33 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
   // Estado para almacenar los horarios deshabilitados
   const [disabledTimes, setDisabledTimes] = useState(new Set());
 
-  // --- MEJORA: Llamada a API simulada para obtener citas ---
+  // --- SIMULACIÓN DE CITAS AGENDADAS ---
+  // En una aplicación real, estos datos vendrían de una API al seleccionar una fecha.
   useEffect(() => {
-    if (!selectedDate) {
-      setDisabledTimes(new Set());
-      return;
-    }
+    if (!selectedDate) return;
 
-    const fetchBookedSlots = async () => {
-      // Formatear la fecha a YYYY-MM-DD para la API
-      const dateString = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
-      
-      // Llamamos a la API simulada
-      const bookedSlots = await fetchBookedSlotsForDate(dateString);
-      
-      // La API devuelve strings "HH:mm", que es lo que necesitamos.
-      setDisabledTimes(new Set(bookedSlots));
+    // Esta función simula una llamada a la base de datos para el día seleccionado.
+    // Para la demostración, solo se agregan citas si se elige el día 15 del mes.
+    const getBookedAppointmentsForDate = (date) => {
+      if (date.getDate() === 15) {
+        return [
+          new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0), // 9:00 AM
+          new Date(date.getFullYear(), date.getMonth(), date.getDate(), 14, 15), // 2:15 PM
+        ];
+      }
+      return [];
     };
 
-    fetchBookedSlots();
+    const bookedAppointments = getBookedAppointmentsForDate(selectedDate);
+    const newDisabledTimes = new Set();
+    bookedAppointments.forEach(booking => {
+      // Bloquear la hora exacta y los 15 minutos posteriores (total 30 min de bloqueo)
+      for (let i = 0; i < 2; i++) {
+        const timeToDisable = new Date(booking.getTime() + i * 15 * 60000);
+        newDisabledTimes.add(`${String(timeToDisable.getHours()).padStart(2, '0')}:${String(timeToDisable.getMinutes()).padStart(2, '0')}`);
+      }
+    });
+    setDisabledTimes(newDisabledTimes);
   }, [selectedDate]);
 
   // Cuando se selecciona una fecha y una hora, se notifica al formulario padre.
@@ -64,7 +71,7 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
       onChange(null); // Si la selección está incompleta, se envía null.
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, selectedTime]);
+  }, [selectedDate, selectedTime]); // << -- CORRECCIÓN APLICADA AQUÍ: Se eliminó 'onChange' del array
 
   const handleDateSelect = (day) => {
     const newSelectedDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
@@ -107,14 +114,6 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
   const errorLabelClasses = 'text-red-400';
   const defaultLabelClasses = 'text-off-white/80';
 
-  // Helper para formatear la hora a formato 12h AM/PM
-  const formatTimeTo12Hour = (time24) => {
-    const [hour, minute] = time24.split(':');
-    const date = new Date();
-    date.setHours(parseInt(hour, 10), parseInt(minute, 10));
-    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-  };
-
   return (
     <div className="flex flex-col w-full">
       <label className={`mb-2 text-sm font-medium transition-colors duration-300 ${error ? errorLabelClasses : defaultLabelClasses}`}>{label}</label>
@@ -129,31 +128,31 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
           <button type="button" onClick={() => changeMonth(1)} className="text-2xl text-soft-gold/80 hover:text-soft-gold transition-colors">›</button>
         </div>
 
-        {/* Contenedor flexible para vista de escritorio */}
-        <div className="flex flex-col lg:flex-row lg:gap-6">
-          {/* Columna Izquierda: Calendario */}
-          <div className="lg:w-[300px] flex-shrink-0">
-            <div className="grid grid-cols-7 gap-1 text-center">
-              {daysOfWeek.map(day => <div key={day} className="text-xs font-bold text-off-white/50">{day}</div>)}
-              {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} />)}
-              {Array.from({ length: daysInMonth }).map((_, day) => {
-                const dayNumber = day + 1;
-                const isPast =
-                  year < todayInBogota.getFullYear() ||
-                  (year === todayInBogota.getFullYear() && month < todayInBogota.getMonth()) ||
-                  (year === todayInBogota.getFullYear() && month === todayInBogota.getMonth() && dayNumber < todayInBogota.getDate());
+        {/* Grilla del Calendario */}
+        <div className="grid grid-cols-7 gap-1 text-center">
+          {daysOfWeek.map(day => <div key={day} className="text-xs font-bold text-off-white/50">{day}</div>)}
+          {/* Espacios en blanco para los días antes del 1ro del mes */}
+          {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} />)}
+          {/* Días del mes */}
+          {Array.from({ length: daysInMonth }).map((_, day) => {
+            const dayNumber = day + 1;
+            // We compare date parts to avoid timezone issues with the `<` operator.
+            const isPast =
+              year < todayInBogota.getFullYear() ||
+              (year === todayInBogota.getFullYear() && month < todayInBogota.getMonth()) ||
+              (year === todayInBogota.getFullYear() && month === todayInBogota.getMonth() && dayNumber < todayInBogota.getDate());
 
-                const isSelected = selectedDate &&
-                  selectedDate.getDate() === dayNumber &&
-                  selectedDate.getMonth() === month &&
-                  selectedDate.getFullYear() === year;
+            const isSelected = selectedDate &&
+              selectedDate.getDate() === dayNumber &&
+              selectedDate.getMonth() === month &&
+              selectedDate.getFullYear() === year;
 
-                let dayClass = 'text-off-white/80 hover:bg-white/10';
-                if (isPast) {
-                  dayClass = 'text-off-white/30 cursor-not-allowed';
-                } else if (isSelected) {
-                  dayClass = 'bg-soft-gold text-volcanic-black font-bold';
-                }
+            let dayClass = 'text-off-white/80 hover:bg-white/10';
+            if (isPast) {
+              dayClass = 'text-off-white/30 cursor-not-allowed';
+            } else if (isSelected) {
+              dayClass = 'bg-soft-gold text-volcanic-black font-bold';
+            }
 
             return (
               <button
@@ -167,66 +166,62 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
               </button>
             );
           })}
-          </div>
-          </div>
-
-          {/* Columna Derecha: Selector de Hora */}
-          <div className="flex-grow mt-6 lg:mt-0 lg:border-l lg:border-white/10 lg:pl-6">
-            {selectedDate ? (
-              <div>
-                <p className="text-center text-sm font-semibold text-off-white/80 mb-3">
-                  Selecciona una hora para el {selectedDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}:
-                </p>
-                <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-                  {timeSlots.map(time => {
-                    const isSelected = selectedTime === time;
-                    
-                    const isToday = selectedDate &&
-                      selectedDate.getFullYear() === todayInBogota.getFullYear() &&
-                      selectedDate.getMonth() === todayInBogota.getMonth() &&
-                      selectedDate.getDate() === todayInBogota.getDate();
-
-                    let isTimeBlocked = false;
-                    if (isToday) {
-                      const minAllowedTime = new Date(bogotaNow.getTime() + 4 * 60 * 60 * 1000);
-                      const [hour, minute] = time.split(':').map(Number);
-                      const timeSlotDate = new Date(selectedDate);
-                      timeSlotDate.setHours(hour, minute, 0, 0);
-                      if (timeSlotDate < minAllowedTime) isTimeBlocked = true;
-                    }
-
-                    const isDisabled = disabledTimes.has(time) || isTimeBlocked;
-
-                    let timeBtnClass = '';
-                    if (isDisabled) {
-                      timeBtnClass = 'bg-gray-700 text-gray-500 cursor-not-allowed line-through';
-                    } else if (isSelected) {
-                      timeBtnClass = 'bg-soft-gold text-volcanic-black font-bold shadow-luminous-gold';
-                    } else {
-                      timeBtnClass = 'bg-esmeralda text-white hover:bg-green-500';
-                    }
-
-                    return (
-                      <button
-                        type="button"
-                        key={time}
-                        onClick={() => !isDisabled && setSelectedTime(time)}
-                        disabled={isDisabled}
-                        className={`py-2 px-3 rounded-lg transition-all duration-200 text-sm whitespace-nowrap flex items-center justify-center ${timeBtnClass}`}
-                      >
-                        {formatTimeTo12Hour(time)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="hidden lg:flex items-center justify-center h-full">
-                <p className="text-off-white/50">Selecciona un día para ver los horarios disponibles.</p>
-              </div>
-            )}
-          </div>
         </div>
+
+        {/* Selector de Hora (aparece al seleccionar una fecha) */}
+        {selectedDate && (
+          <div className="mt-6 border-t border-white/10 pt-4">
+            <p className="text-center text-sm font-semibold text-off-white/80 mb-3">
+              Selecciona una hora para el {selectedDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}:
+            </p>
+            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-2">
+              {timeSlots.map(time => {
+                const isSelected = selectedTime === time;
+                
+                const isToday = selectedDate &&
+                  selectedDate.getFullYear() === todayInBogota.getFullYear() &&
+                  selectedDate.getMonth() === todayInBogota.getMonth() &&
+                  selectedDate.getDate() === todayInBogota.getDate();
+
+                let isTimeBlocked = false;
+                if (isToday) {
+                  // Calcula la hora mínima permitida (ahora + 4 horas)
+                  const minAllowedTime = new Date(bogotaNow.getTime() + 4 * 60 * 60 * 1000);
+                  
+                  // Crea un objeto Date para el horario actual en el día seleccionado
+                  const [hour, minute] = time.split(':').map(Number);
+                  const timeSlotDate = new Date(selectedDate);
+                  timeSlotDate.setHours(hour, minute, 0, 0);
+
+                  if (timeSlotDate < minAllowedTime) isTimeBlocked = true;
+                }
+
+                const isDisabled = disabledTimes.has(time) || isTimeBlocked;
+
+                let timeBtnClass = '';
+                if (isDisabled) {
+                  timeBtnClass = 'bg-gray-700 text-gray-500 cursor-not-allowed line-through';
+                } else if (isSelected) {
+                  timeBtnClass = 'bg-soft-gold text-volcanic-black font-bold shadow-luminous-gold';
+                } else {
+                  timeBtnClass = 'bg-esmeralda text-white hover:bg-green-500';
+                }
+
+                return (
+                  <button
+                    type="button"
+                    key={time}
+                    onClick={() => !isDisabled && setSelectedTime(time)}
+                    disabled={isDisabled}
+                    className={`py-2 px-3 rounded-lg transition-all duration-200 text-sm ${timeBtnClass}`}
+                  >
+                    {time}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

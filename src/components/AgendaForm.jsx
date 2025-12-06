@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react'; // 1. IMPORTANTE: Se agrega 'useCallback'
+import React, { useState, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import FormInput from './FormInput';
@@ -425,7 +425,6 @@ function AgendaForm() {
               {showBusinessOption && (<CustomSelect label="Opción de Negocio" name="opcion_negocio" value={formData.opcion_negocio} onChange={handleChange} options={negocioOptions} placeholder="Selecciona..." error={!!formErrors.opcion_negocio} />)}
               <FormInput value={formData.codigo_inmueble} onChange={handleChange} label="Código del Inmueble o Servicio" id="codigo_inmueble" name="codigo_inmueble" type="text" placeholder="Ej: 110AB" required error={!!formErrors.codigo_inmueble} />
             </div>
-              {/* --- MEJORA: Se ajusta el layout para el nuevo selector de fecha/hora --- */}
               {showVisitDetails && (
                 <div className="transition-all duration-500 ease-in-out mt-6 flex flex-col gap-6">
                   <CustomDateTimePicker label="Fecha y Hora de la Visita" selected={formData.fecha_cita_bogota} onChange={handleDateChange} error={!!formErrors.fecha_cita_bogota} />
