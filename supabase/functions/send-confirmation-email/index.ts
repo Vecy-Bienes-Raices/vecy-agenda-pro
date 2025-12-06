@@ -326,7 +326,7 @@ async function createContractPdf(formData) {
     return currentY;
   };
 
-  const clean = (val: any): string => String(val || '').replace(/[{}]/g, '');
+  const clean = (val: any): string => String(val || '').replace(/[{}]/g, '').trim();
 
   const drawRichText = (segments, options) => {
     let { y: currentY, x: startX, width: maxWidth, lineHeight } = options;
