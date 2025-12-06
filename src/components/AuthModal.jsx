@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { FaGoogle, FaFacebook, FaEnvelope } from 'react-icons/fa';
+import { FaFacebook, FaEnvelope } from 'react-icons/fa';
+import { FcGoogle } from 'react-icons/fc';
 
 const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
     const [loading, setLoading] = useState(false);
@@ -89,7 +90,7 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
                             disabled={loading}
                             className="w-full flex items-center justify-center gap-3 bg-white text-gray-800 font-semibold py-3 px-4 rounded-xl hover:bg-gray-50 transition-all duration-300 shadow-md hover:shadow-xl transform hover:-translate-y-0.5"
                         >
-                            <FaGoogle className="text-red-500 text-xl" />
+                            <FcGoogle className="text-2xl" />
                             Continuar con Google
                         </button>
 
