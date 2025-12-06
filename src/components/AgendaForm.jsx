@@ -239,12 +239,12 @@ function AgendaForm() {
     if (data.solicitante_email && !/^\S+@\S+\.\S+$/.test(data.solicitante_email)) { errors.solicitante_email = 'Por favor, ingresa un formato de correo electrónico válido.'; }
 
     if (celularLimpio) {
-      if (celularLimpio.length < 10) {
-        errors.solicitante_celular = 'El número de celular debe tener al menos 10 dígitos.';
-      } else if (isFraudulentNumber(celularLimpio)) {
+      if (celularLimpio.length < 12) { // 57 + 10 dígitos = 12
+        errors.solicitante_celular = 'El número de celular debe tener 10 dígitos.';
+      } else if (isFraudulentNumber(celularLimpio.substring(2))) { // Validamos solo la parte del número (sin 57)
         errors.solicitante_celular = 'Por favor, ingresa un número de celular válido y real.';
-      } else if (!/^3[\d]{9}$/.test(celularLimpio)) {
-        // Validación extra para Colombia: Debe empezar por 3 y tener 10 dígitos
+      } else if (!/^573[\d]{9}$/.test(celularLimpio)) {
+        // Validación extra para Colombia: Debe empezar por 573 y tener 12 dígitos en total
         errors.solicitante_celular = 'El número de celular debe ser un línea válida en Colombia (comenzar por 3).';
       }
     }
