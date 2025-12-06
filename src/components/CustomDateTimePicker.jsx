@@ -57,39 +57,22 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
     setDisabledTimes(newDisabledTimes);
   }, [selectedDate]);
 
-  // Cuando se selecciona una fecha y una hora, se notifica al formulario padre.
-  useEffect(() => {
-    if (selectedDate && selectedTime) {
-      const [hour, minute] = selectedTime.split(':');
-      // Construct an ISO-like string with the Bogotá timezone offset (-05:00).
-      // This ensures the created Date object represents the exact moment in Bogotá time,
-      // regardless of the user's local timezone.
-      const dateString = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}T${hour}:${minute}:00-05:00`;
-      const finalDate = new Date(dateString);
-      onChange(finalDate);
-    } else {
-      onChange(null); // Si la selección está incompleta, se envía null.
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, selectedTime]); // << -- CORRECCIÓN APLICADA AQUÍ: Se eliminó 'onChange' del array
-
-  const handleDateSelect = (day) => {
-    const newSelectedDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
-    setSelectedDate(newSelectedDate);
-    setSelectedTime(null); // Resetea la hora al cambiar de fecha
+  // Helper function to convert 24h time to 12h AM/PM
+  const formatTime12h = (hour, minute) => {
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const h = hour % 12 || 12;
+    const m = String(minute).padStart(2, '0');
+    return `${h}:${m} ${period}`;
   };
 
-  const changeMonth = (amount) => {
-    setViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + amount, 1));
+  // Helper function to parse 12h AM/PM back to 24h hour/minute
+  const parseTime12h = (timeString) => {
+    const [time, period] = timeString.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return { hours, minutes };
   };
-
-  // --- Lógica para generar el calendario ---
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
-  const monthName = viewDate.toLocaleDateString('es-ES', { month: 'long' });
-  const firstDayOfMonth = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
   // Generar los horarios de 8 AM a 5 PM en intervalos de 15 minutos
   const timeSlots = useMemo(() => {
@@ -100,9 +83,7 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
 
     let currentTime = new Date(startTime);
     while (currentTime <= endTime) {
-      slots.push(
-        `${String(currentTime.getHours()).padStart(2, '0')}:${String(currentTime.getMinutes()).padStart(2, '0')}`
-      );
+      slots.push(formatTime12h(currentTime.getHours(), currentTime.getMinutes()));
       currentTime.setMinutes(currentTime.getMinutes() + 15);
     }
     return slots;
@@ -114,10 +95,25 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
   const errorLabelClasses = 'text-red-400';
   const defaultLabelClasses = 'text-off-white/80';
 
+  // Cuando se selecciona una fecha y una hora, se notifica al formulario padre.
+  useEffect(() => {
+    if (selectedDate && selectedTime) {
+      const { hours, minutes } = parseTime12h(selectedTime);
+      // Construct an ISO-like string with the Bogotá timezone offset (-05:00).
+      const dateString = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00-05:00`;
+      const finalDate = new Date(dateString);
+      onChange(finalDate);
+    } else {
+      onChange(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, selectedTime]);
+
   return (
     <div className="flex flex-col w-full">
       <label className={`mb-2 text-sm font-medium transition-colors duration-300 ${error ? errorLabelClasses : defaultLabelClasses}`}>{label}</label>
-      <div className={`bg-black/20 p-4 rounded-lg border transition-colors duration-300 ${error ? errorBorderClasses : defaultBorderClasses}`}>
+      {/* MEJORA UI: max-w-sm para que no se estire demasiado en escritorio */}
+      <div className={`bg-black/20 p-4 rounded-lg border transition-colors duration-300 max-w-sm mx-auto w-full ${error ? errorBorderClasses : defaultBorderClasses}`}>
         {/* Encabezado del Calendario */}
         <div className="flex justify-between items-center mb-4">
           <button type="button" onClick={() => changeMonth(-1)} className="text-2xl text-soft-gold/80 hover:text-soft-gold transition-colors">‹</button>
@@ -174,10 +170,10 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
             <p className="text-center text-sm font-semibold text-off-white/80 mb-3">
               Selecciona una hora para el {selectedDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}:
             </p>
-            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-2">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-2">
               {timeSlots.map(time => {
                 const isSelected = selectedTime === time;
-                
+
                 const isToday = selectedDate &&
                   selectedDate.getFullYear() === todayInBogota.getFullYear() &&
                   selectedDate.getMonth() === todayInBogota.getMonth() &&
@@ -187,11 +183,11 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
                 if (isToday) {
                   // Calcula la hora mínima permitida (ahora + 4 horas)
                   const minAllowedTime = new Date(bogotaNow.getTime() + 4 * 60 * 60 * 1000);
-                  
+
                   // Crea un objeto Date para el horario actual en el día seleccionado
-                  const [hour, minute] = time.split(':').map(Number);
+                  const { hours, minutes } = parseTime12h(time);
                   const timeSlotDate = new Date(selectedDate);
-                  timeSlotDate.setHours(hour, minute, 0, 0);
+                  timeSlotDate.setHours(hours, minutes, 0, 0);
 
                   if (timeSlotDate < minAllowedTime) isTimeBlocked = true;
                 }
@@ -213,7 +209,7 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
                     key={time}
                     onClick={() => !isDisabled && setSelectedTime(time)}
                     disabled={isDisabled}
-                    className={`py-2 px-3 rounded-lg transition-all duration-200 text-sm ${timeBtnClass}`}
+                    className={`py-2 px-3 rounded-lg transition-all duration-200 text-xs sm:text-sm ${timeBtnClass}`}
                   >
                     {time}
                   </button>
