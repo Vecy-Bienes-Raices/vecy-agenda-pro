@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FaUserShield, FaRegHandshake } from 'react-icons/fa';
 import { BsInfoCircle } from 'react-icons/bs';
 
-const portadImageUrl = '/Vecy_agenda1.png';
+const portadImageUrl = '/Vecy_agenda1.webp';
 
 // Pequeño componente para encapsular la lógica de los ítems con icono
 const InfoItem = ({ icon: Icon, children }) => (
@@ -18,7 +18,7 @@ function WelcomeScreen() {
 
   return (
     <div className="text-center">
-      
+
       <div className="w-full max-w-[240px] sm:max-w-[280px] md:max-w-xs mx-auto mb-8">
         <img
           src={portadImageUrl}
@@ -49,10 +49,10 @@ function WelcomeScreen() {
             <strong>¡Gracias por confiar en nosotros!</strong>
           </InfoItem>
         </div>
-        
-        
+
+
       </div>
-      
+
       <button
         onClick={() => navigate('/formulario')}
         className="bg-soft-gold/80 hover:bg-soft-gold text-volcanic-black font-bold py-3 px-10 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold"

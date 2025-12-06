@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-const imageUrl = '/Vecy_declined.png';
+const imageUrl = '/Vecy_declined.webp';
 
 function DeclineScreen() {
   return (
