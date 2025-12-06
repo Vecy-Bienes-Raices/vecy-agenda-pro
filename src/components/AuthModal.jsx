@@ -18,7 +18,7 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: provider,
                 options: {
-                    redirectTo: window.location.origin, // Redirige a la misma página
+                    redirectTo: `${window.location.origin}/formulario`, // Redirige al formulario
                 }
             });
             if (error) throw error;
@@ -37,7 +37,7 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
             const { error } = await supabase.auth.signInWithOtp({
                 email,
                 options: {
-                    emailRedirectTo: window.location.origin,
+                    emailRedirectTo: `${window.location.origin}/formulario`,
                 }
             });
             if (error) throw error;

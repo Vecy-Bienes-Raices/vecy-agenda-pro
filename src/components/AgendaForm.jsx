@@ -362,7 +362,7 @@ function AgendaForm() {
     <form noValidate onSubmit={handleSubmit}>
       <div className="text-center mb-8">
         <img src={logoUrl} alt="Logo oficial de Vecy" className="mx-auto h-20 w-20 mb-4" />
-        <h2 className="text-3xl font-bold text-off-white">Formulario de Solicitud</h2>
+        <h2 className="text-3xl font-bold text-off-white">Verificación de Identidad</h2>
         <Link to="/" className="text-soft-gold text-sm hover:underline mt-1 inline-block">← Volver a la portada</Link>
       </div>
 
