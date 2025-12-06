@@ -74,6 +74,18 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
     return { hours, minutes };
   };
 
+  const changeMonth = (amount) => {
+    setViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + amount, 1));
+  };
+
+  // --- Lógica para generar el calendario ---
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const monthName = viewDate.toLocaleDateString('es-ES', { month: 'long' });
+  const firstDayOfMonth = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
   // Generar los horarios de 8 AM a 5 PM en intervalos de 15 minutos
   const timeSlots = useMemo(() => {
     const slots = [];
