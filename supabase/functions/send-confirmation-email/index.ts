@@ -229,10 +229,10 @@ async function sendWhatsAppNotification(formData: any) {
   if (esColega) {
     // Formato AGENTE (Ultra Corto)
     const clienteInfo = interesado_nombre ? ` Cliente: *${interesado_nombre}* 👤` : '';
-    mensajeContacto = `[ *Confirmación* Solicitud ${displayId} ✅ ${servicio} *${codigo}* 🏠, Fecha 📅 ${fecha_cita_texto} Hora 🕜 ${hora_cita}${clienteInfo}]`;
+    mensajeContacto = `*Confirmación* Solicitud ${displayId} ✅ ${servicio} *${codigo}* 🏠, Fecha 📅 ${fecha_cita_texto} Hora 🕜 ${hora_cita}${clienteInfo}`;
   } else {
     // Formato CLIENTE DIRECTO (Ultra Corto)
-    mensajeContacto = `[ *Confirmación* Solicitud ${displayId} ✅ ${servicio} *${codigo}* 🏠, Fecha 📅 ${fecha_cita_texto} Hora 🕜 ${hora_cita}]`;
+    mensajeContacto = `*Confirmación* Solicitud ${displayId} ✅ ${servicio} *${codigo}* 🏠, Fecha 📅 ${fecha_cita_texto} Hora 🕜 ${hora_cita}`;
   }
 
   const waLink = `https://wa.me/${solicitanteCelularLimpio}?text=${encodeURIComponent(mensajeContacto)}`;
