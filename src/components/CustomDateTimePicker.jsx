@@ -30,38 +30,12 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
   // Estado para almacenar los horarios deshabilitados
   const [disabledTimes, setDisabledTimes] = useState(new Set());
 
-  // --- SIMULACIÓN DE CITAS AGENDADAS ---
-  // En una aplicación real, estos datos vendrían de una API al seleccionar una fecha.
+  // --- GESTIÓN DE DISPONIBILIDAD (A FUTURO) ---
+  // Actualmente solo aplica la regla de las 4 horas de antelación.
+  // En una próxima fase, aquí consultaremos a Supabase ('solicitudes') para bloquear citas reales.
   useEffect(() => {
-    if (!selectedDate) return;
-
-    // Esta función simula una llamada a la base de datos para el día seleccionado.
-    // Para la demostración, solo se agregan citas si se elige el día 15 del mes.
-    const getBookedAppointmentsForDate = (date) => {
-      // Usamos getDate() directo ya que date viene "limpio" (00:00:00 en zona local del componente, 
-      // que tratamos como si fuera Bogotá por abstracción)
-      if (date.getDate() === 15) {
-        // Simulamos citas a las 9:00 AM y 2:15 PM
-        // Creamos fechas base sobre la fecha seleccionada
-        const booking1 = new Date(date); booking1.setHours(9, 0, 0, 0);
-        const booking2 = new Date(date); booking2.setHours(14, 15, 0, 0);
-        return [booking1, booking2];
-      }
-      return [];
-    };
-
-    const bookedAppointments = getBookedAppointmentsForDate(selectedDate);
-    const newDisabledTimes = new Set();
-
-    bookedAppointments.forEach(booking => {
-      // Bloquear la hora exacta y los 15 minutos posteriores
-      for (let i = 0; i < 2; i++) {
-        const timeToDisable = new Date(booking.getTime() + i * 15 * 60000);
-        // Formato HH:mm para comparar con los slots
-        newDisabledTimes.add(format(timeToDisable, 'HH:mm'));
-      }
-    });
-    setDisabledTimes(newDisabledTimes);
+    // Por ahora limpiamos los bloqueos externos al cambiar de fecha
+    setDisabledTimes(new Set());
   }, [selectedDate]);
 
   // Cuando se selecciona una fecha y una hora, se notifica al formulario padre.
