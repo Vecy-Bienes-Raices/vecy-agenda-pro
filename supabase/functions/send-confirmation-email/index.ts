@@ -4,6 +4,9 @@ import { PDFDocument, rgb, StandardFonts } from 'https://esm.sh/pdf-lib@1.17.1';
 import { encode, decode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 import nodemailer from "npm:nodemailer@6.9.13";
 
+declare const Deno: any;
+
+
 // ================== 1. DATOS Y CONSTANTES ==================
 const GMAIL_USER = Deno.env.get("GMAIL_USER");
 const GMAIL_APP_PASSWORD = Deno.env.get("GMAIL_APP_PASSWORD");
@@ -18,7 +21,7 @@ const vecyLogoBase64 = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDA
 const janiFirmaBase64 = 'data:image/png;base64,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';
 
 // ================== 2. FUNCIÓN PRINCIPAL (ORQUESTADOR) ==================
-serve(async (req) => {
+serve(async (req: any) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
   }
@@ -84,7 +87,7 @@ serve(async (req) => {
       status: 200,
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error general en la Edge Function:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
@@ -95,7 +98,7 @@ serve(async (req) => {
 
 // ================== 3. LÓGICA DE CORREOS ==================
 
-function getEmailContent(formData) {
+function getEmailContent(formData: any) {
   const { solicitante_nombre, solicitante_perfil, solicitud_id, servicio_solicitado, opcion_negocio, codigo_inmueble, fecha_cita_texto, solicitante_email, hora_cita } = formData;
   const logoUrlParaEmail = 'https://i.imgur.com/3Yzqg4n.png';
 
@@ -104,7 +107,7 @@ function getEmailContent(formData) {
   const fechaActual = new Intl.DateTimeFormat('es-CO', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Bogota' }).format(now);
   const horaActual = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' }).format(now);
 
-  const baseHtml = (title, bodyContent) => `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style> @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap'); body { font-family: 'Poppins', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; } .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.07); border: 1px solid #e1e1e1; } .header { background-color: #3E2723; padding: 30px; text-align: center; } .header img { max-width: 120px; } .content { padding: 35px 40px; color: #333333; } .content h2 { color: #3E2723; font-size: 22px; margin-top: 0; font-weight: 700; } .content p { font-size: 16px; line-height: 1.7; margin-bottom: 20px; } .highlight { background-color: #fcfcfc; padding: 15px 20px; border-left: 4px solid #D4AF37; margin-top: 25px; border-radius: 4px; } .highlight p { font-size: 15px; margin: 0; } .footer { background-color: #3E2723; padding: 20px; text-align: center; font-size: 12px; color: #d7ccc8; } .footer a { color: #D4AF37; text-decoration: none; } </style></head><body><div class="container"><div class="header"><img src="${logoUrlParaEmail}" alt="Vecy Bienes Raíces Logo"></div><div class="content"><h2>${title}</h2>${bodyContent}</div><div class="footer"><p>Vecy Bienes Raíces S.A.S. © ${new Date().getFullYear()}</p><p><a href="https://vecy.com.co" target="_blank">vecy.com.co</a></p></div></div></body></html>`;
+  const baseHtml = (title: any, bodyContent: any) => `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style> @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap'); body { font-family: 'Poppins', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; } .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.07); border: 1px solid #e1e1e1; } .header { background-color: #3E2723; padding: 30px; text-align: center; } .header img { max-width: 120px; } .content { padding: 35px 40px; color: #333333; } .content h2 { color: #3E2723; font-size: 22px; margin-top: 0; font-weight: 700; } .content p { font-size: 16px; line-height: 1.7; margin-bottom: 20px; } .highlight { background-color: #fcfcfc; padding: 15px 20px; border-left: 4px solid #D4AF37; margin-top: 25px; border-radius: 4px; } .highlight p { font-size: 15px; margin: 0; } .footer { background-color: #3E2723; padding: 20px; text-align: center; font-size: 12px; color: #d7ccc8; } .footer a { color: #D4AF37; text-decoration: none; } </style></head><body><div class="container"><div class="header"><img src="${logoUrlParaEmail}" alt="Vecy Bienes Raíces Logo"></div><div class="content"><h2>${title}</h2>${bodyContent}</div><div class="footer"><p>Vecy Bienes Raíces S.A.S. © ${new Date().getFullYear()}</p><p><a href="https://vecy.com.co" target="_blank">vecy.com.co</a></p></div></div></body></html>`;
 
   const subject = `✅ Solicitud #${solicitud_id} Recibida | Vecy Agenda`;
   const title = `¡Hola, ${solicitante_nombre}! Hemos recibido tu solicitud 🏠✨`;
@@ -126,7 +129,7 @@ function getEmailContent(formData) {
   return { subject, html: baseHtml(title, body) };
 }
 
-function getAdminEmailContent(formData) {
+function getAdminEmailContent(formData: any) {
   const { solicitud_id, solicitante_nombre } = formData;
   const logoUrlParaEmail = 'https://i.imgur.com/3Yzqg4n.png';
 
@@ -196,11 +199,11 @@ function getAdminEmailContent(formData) {
 
 // ================== 4. NOTIFICACIÓN WHATSAPP (CallMeBot) ==================
 
-async function sendWhatsAppNotification(formData) {
+async function sendWhatsAppNotification(formData: any) {
   const {
     solicitud_id, solicitante_nombre, solicitante_perfil, solicitante_numero_documento, solicitante_tipo_documento, solicitante_email, solicitante_celular,
     servicio_solicitado, codigo_inmueble, opcion_negocio, fecha_cita_texto, hora_cita, cantidad_personas,
-    interesado_nombre, interesado_tipo_documento, interesado_documento, tipo_cliente
+    interesado_nombre, interesado_tipo_documento, interesado_documento, tipo_cliente, id
   } = formData;
 
   const phone = '+573166569719';
@@ -209,37 +212,54 @@ async function sendWhatsAppNotification(formData) {
   // Limpiar numero celular del solicitante para el link (quitar espacios o chars raros)
   const solicitanteCelularLimpio = solicitante_celular ? solicitante_celular.replace(/\D/g, '') : '';
 
-  // Mensaje para contactar al cliente (Texto completo y formateado)
-  // Nota: WhatsApp web/app soporta cierto formateo básico en el texto predefinido (*bold*), pero no html.
-  const mensajeContacto = `¡Hola! 👋 Somos *Vecy Bienes Raíces*. Recibimos tu solicitud para: *${servicio_solicitado}* del inmueble *${codigo_inmueble || 'N/A'}*. 🏠 Confirmamos tu cita para el *${fecha_cita_texto || 'fecha por confirmar'}* a las *${hora_cita || 'hora por confirmar'}*.`;
+  // Extraer el primer nombre para un saludo más cercano
+  const primerNombre = solicitante_nombre ? solicitante_nombre.trim().split(' ')[0] : '';
+
+  // Lógica del Saludo y Mensaje Corto
+  const perfil = (solicitante_perfil || '').toLowerCase();
+  const esColega = perfil.includes('agente') || perfil.includes('inmobiliaria') || perfil.includes('colega');
+  const servicio = servicio_solicitado || 'Visitar inmueble';
+  const codigo = codigo_inmueble || 'N/A';
+
+  // Usamos 'id' (PK de base de datos) para el título, si viene. Si no, usamos 'solicitud_id'.
+  const displayId = id || solicitud_id;
+
+  let mensajeContacto = '';
+
+  if (esColega) {
+    // Formato AGENTE (Ultra Corto)
+    const clienteInfo = interesado_nombre ? ` Cliente: *${interesado_nombre}* 👤` : '';
+    mensajeContacto = `[ *Confirmación* Solicitud ${displayId} ✅ ${servicio} *${codigo}* 🏠, Fecha 📅 ${fecha_cita_texto} Hora 🕜 ${hora_cita}${clienteInfo}]`;
+  } else {
+    // Formato CLIENTE DIRECTO (Ultra Corto)
+    mensajeContacto = `[ *Confirmación* Solicitud ${displayId} ✅ ${servicio} *${codigo}* 🏠, Fecha 📅 ${fecha_cita_texto} Hora 🕜 ${hora_cita}]`;
+  }
 
   const waLink = `https://wa.me/${solicitanteCelularLimpio}?text=${encodeURIComponent(mensajeContacto)}`;
 
-  const text = `🔔 *Nueva Solicitud VECY* 🔔
+  const text = `🔔 *Solicitud No. ${displayId}* 🔔
 
 👤 *Solicitante*
-*Perfil:* ${solicitante_perfil || 'N/A'}
-*Nombre:* ${solicitante_nombre || 'N/A'}
-*Doc: ${solicitante_tipo_documento || 'Doc'}:* ${solicitante_numero_documento || ''}
-🆔 *ID:* ${solicitud_id}
-✉ *Correo*: ${solicitante_email || 'N/A'}
-📞 *Celular:* ${solicitante_celular || 'N/A'}
+${solicitante_perfil || 'N/A'}
+${solicitante_nombre || 'N/A'}
+🪪 ${solicitante_numero_documento || ''}
+Contrato: ${solicitud_id}
+✉ ${solicitante_email || 'N/A'}
+📞 ${solicitante_celular || 'N/A'}
 
 🏠 *Solicitud*
-*Servicio:* ${servicio_solicitado || 'N/A'}
-*Código:* ${codigo_inmueble || 'N/A'}
-*Negocio:* ${opcion_negocio || 'N/A'}
-*Fecha:* ${fecha_cita_texto || 'N/A'}
-*Hora:* ${hora_cita || 'N/A'}
-*Personas:* ${cantidad_personas || 'N/A'}
+${servicio_solicitado || 'N/A'}
+Cod: ${codigo_inmueble || 'N/A'}
+Negocio: ${opcion_negocio || 'N/A'}
+📅 ${fecha_cita_texto || 'N/A'}
+🕜 ${hora_cita || 'N/A'}
+Asistiran: ${cantidad_personas || 'N/A'} personas
 
 👥 *Cliente*
-*Tipo:* ${tipo_cliente || 'N/A'}
-*Nombre:* ${interesado_nombre || 'N/A'}
-*Doc: ${interesado_tipo_documento || 'Doc'}* ${interesado_documento || ''}
+${interesado_nombre || 'N/A'}
+🪪 ${interesado_documento || ''}
 
-👇 *Contactar al Cliente* 👇
-Clic para contactar al cliente:
+👇 Contactar Cliente 👇
 ${waLink}`;
 
   // CallMeBot espera el texto URL encoded
@@ -257,7 +277,7 @@ ${waLink}`;
   }
 }
 
-async function sendEmail(to, bcc, subject, html, attachments = []) {
+async function sendEmail(to: any, bcc: any, subject: any, html: any, attachments: any[] = []) {
   if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
     throw new Error("Faltan las credenciales de Gmail (GMAIL_USER, GMAIL_APP_PASSWORD)");
   }
@@ -298,26 +318,27 @@ async function sendEmail(to, bcc, subject, html, attachments = []) {
 
 // ================== 4. LÓGICA DE PDF Y STORAGE ==================
 
-async function createContractPdf(formData) {
+async function createContractPdf(formData: any) {
   const pdfDoc = await PDFDocument.create();
   let currentPage = pdfDoc.addPage();
   const { width, height } = currentPage.getSize();
 
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  // Cambio de fuente a Serif (Times Roman) para mayor formalidad
+  const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
   const black = rgb(0, 0, 0);
   const gray = rgb(0.3, 0.3, 0.3);
 
   const margin = 50;
   let y = height - margin;
 
-  const drawFooter = (pageToDrawOn) => {
+  const drawFooter = (pageToDrawOn: any) => {
     const footerText = 'Vecy Bienes Raíces S.A.S. | www.vecy.com.co';
     const footerTextWidth = font.widthOfTextAtSize(footerText, 8);
     pageToDrawOn.drawText(footerText, { x: (width - footerTextWidth) / 2, y: margin / 2, font, size: 8, color: gray });
   };
 
-  const checkAndAddPage = (currentY, neededHeight) => {
+  const checkAndAddPage = (currentY: any, neededHeight: any) => {
     if (currentY - neededHeight < margin + 20) {
       drawFooter(currentPage);
       currentPage = pdfDoc.addPage();
@@ -328,78 +349,107 @@ async function createContractPdf(formData) {
 
   const clean = (val: any): string => String(val || '').replace(/[{}]/g, '').trim();
 
-  const drawRichText = (segments, options) => {
+  // --- FUNCIÓN DE TEXTO JUSTIFICADO ---
+  const drawRichText = (segments: any[], options: any) => {
     let { y: currentY, x: startX, width: maxWidth, lineHeight } = options;
-    let currentX = startX;
 
+    // Aplanamos los segmentos en una lista de palabras con su estilo
+    let allWords = [];
     for (const segment of segments) {
       const segFont = segment.font || font;
-      const segSize = segment.size || 10;
+      const segSize = segment.size || 11; // Un poco más grande para mejor lectura
       const segColor = segment.color || black;
 
-      // Manejo de saltos de línea explícitos en el texto del segmento
-      const lines = segment.text.split('\n');
+      // Manejo de saltos de línea explícitos (\n)
+      // Primero dividimos por saltos de línea para preservar párrafos
+      const paragraphs = segment.text.split('\n');
 
-      for (let i = 0; i < lines.length; i++) {
-        const lineStr = lines[i];
+      for (let i = 0; i < paragraphs.length; i++) {
+        if (i > 0) allWords.push({ isNewLine: true }); // Marcador de salto de línea
 
-        // Si no es la primera línea del segmento, forzamos un salto de línea (era un \n)
-        if (i > 0) {
-          currentY = checkAndAddPage(currentY, lineHeight);
-          currentX = startX;
-          currentY -= lineHeight;
-        }
-
-        const words = lineStr.split(' ');
-
-        for (let j = 0; j < words.length; j++) {
-          const word = words[j];
-          // Determinamos si necesitamos un espacio antes de la palabra
-          // Si es la primera palabra de la línea Y estamos al inicio de X, no espacio.
-          // Si es la primera palabra del segmento (j=0) y i=0, depende de si el segmento anterior dejó un espacio?
-          // Simplificación: Asumimos que los espacios están en el string text.
-          // Re-pensando: split(' ') elimina los espacios. Debemos reconstruirlos.
-          // Mejor: split(/(\s+)/) para mantener separadores? O simplemente checkear el ancho.
-
-          // Lógica estándar de wrapping:
-          // Si la palabra cabe, dibujarla. Si no, salto de línea.
-          // El espacio: si j < words.length - 1, agregar espacio al dibujar (o medir).
-          // Pero esto es complejo mixing fonts.
-
-          // Enfoque simplificado que funciona para la mayoría de casos occidentales:
-          // Simular espacio si no es el inicio de línea.
-          const prefix = (currentX === startX) ? '' : ' ';
-          const wordToDraw = word;
-
-          // Medir palabra con espacio previo si aplica, para ver si cabe
-          const widthWithPrefix = segFont.widthOfTextAtSize(prefix + wordToDraw, segSize);
-
-          if (currentX + widthWithPrefix > startX + maxWidth) {
-            // Salto de línea
-            currentY = checkAndAddPage(currentY, lineHeight);
-            currentX = startX;
-            currentY -= lineHeight;
-
-            // Al inicio de nueva línea, no space prefix
-            currentPage.drawText(wordToDraw, { x: currentX, y: currentY, font: segFont, size: segSize, color: segColor });
-            currentX += segFont.widthOfTextAtSize(wordToDraw, segSize);
-          } else {
-            // Cabe en la línea actual
-            currentPage.drawText(prefix + wordToDraw, { x: currentX, y: currentY, font: segFont, size: segSize, color: segColor });
-            currentX += widthWithPrefix;
-          }
+        const words = paragraphs[i].split(/\s+/).filter((w: any) => w.length > 0);
+        for (const w of words) {
+          allWords.push({
+            text: w,
+            font: segFont,
+            size: segSize,
+            color: segColor,
+            width: segFont.widthOfTextAtSize(w, segSize)
+          });
         }
       }
     }
+
+    let lineBuffer: any[] = [];
+    let currentLineWidth = 0;
+    const spaceWidth = font.widthOfTextAtSize(' ', 11);
+
+    const flushLine = (justify = false) => {
+      if (lineBuffer.length === 0) return;
+
+      // Verificar si cabe en la página
+      currentY = checkAndAddPage(currentY, lineHeight);
+
+      if (!justify || lineBuffer.length < 2) {
+        // Dibujado normal (Izquierda)
+        let xObj = startX;
+        for (const item of lineBuffer) {
+          currentPage.drawText(item.text, { x: xObj, y: currentY, font: item.font, size: item.size, color: item.color });
+          xObj += item.width + spaceWidth;
+        }
+      } else {
+        // Justificado
+        const totalWordsWidth = lineBuffer.reduce((sum, item) => sum + item.width, 0);
+        const extraSpace = maxWidth - totalWordsWidth;
+        const spacePerGap = extraSpace / (lineBuffer.length - 1);
+
+        let xObj = startX;
+        lineBuffer.forEach((item, index) => {
+          currentPage.drawText(item.text, { x: xObj, y: currentY, font: item.font, size: item.size, color: item.color });
+          // En el último elemento no agregamos espacio
+          if (index < lineBuffer.length - 1) {
+            xObj += item.width + spacePerGap;
+          }
+        });
+      }
+
+      // Reset
+      currentY -= lineHeight;
+      lineBuffer = [];
+      currentLineWidth = 0;
+    };
+
+    for (const item of allWords) {
+      if (item.isNewLine) {
+        flushLine(false); // No justificar la última línea del párrafo
+        continue;
+      }
+
+      // Check if fits
+      // Add space width only if not first word
+      const additionalWidth = (lineBuffer.length > 0 ? spaceWidth : 0) + item.width;
+
+      if (currentLineWidth + additionalWidth > maxWidth) {
+        flushLine(true); // Justificar línea llena
+        lineBuffer.push(item);
+        currentLineWidth = item.width;
+      } else {
+        lineBuffer.push(item);
+        currentLineWidth += additionalWidth;
+      }
+    }
+    flushLine(false); // Última línea remanente (no justificada)
     return currentY;
   };
 
-  const drawClause = (title: string, segments: RichTextSegment[], currentY: number): number => {
+  const drawClause = (title: string, segments: any[], currentY: number): number => {
     currentY = checkAndAddPage(currentY, 32);
-    currentPage.drawText(title, { x: margin, y: currentY, font: boldFont, size: 11, color: black });
-    currentY -= 18;
+    // Título en negrita y un poco más grande
+    currentPage.drawText(title, { x: margin, y: currentY, font: boldFont, size: 12, color: black });
+    currentY -= 15;
+    // Párrafo justificado
     currentY = drawRichText(segments, { y: currentY, x: margin, width: width - margin * 2, lineHeight: 14 });
-    return currentY - 10;
+    return currentY - 12; // Espacio tras cláusula
   };
 
   // --- ENCABEZADO ---
@@ -407,7 +457,7 @@ async function createContractPdf(formData) {
     const logoBytes = decode(vecyLogoBase64.split(',')[1]);
     const vecyLogoImage = await pdfDoc.embedJpg(logoBytes);
     currentPage.drawImage(vecyLogoImage, { x: margin, y: y - 25, width: 50, height: 50 });
-  } catch (e) { console.error("Error al incrustar el logo de Vecy en el PDF.", e.message); }
+  } catch (e: any) { console.error("Error al incrustar el logo de Vecy en el PDF.", e.message); }
 
   currentPage.drawText('CONTRATO DE PUNTAS COMPARTIDAS', { x: margin + 70, y: y, font: boldFont, size: 16, color: black });
   currentPage.drawText('Acuerdo de Colaboración Inmobiliaria', { x: margin + 70, y: y - 18, font: font, size: 11, color: gray });
@@ -423,6 +473,7 @@ async function createContractPdf(formData) {
   const visitDate = formData.fecha_cita ? new Date(formData.fecha_cita).toLocaleString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' }) : 'No especificada';
   const generationDate = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Bogota' });
 
+  // Agregamos clean() a todas las variables
   const introSegments = [
     { text: 'Entre los suscritos a saber, por una parte, JANI ALVES SOUZA, mayor de edad, identificada con cédula de ciudadanía No. 41.057.506, actuando en representación de VECY BIENES RAÍCES, quien en adelante se denominará EL AGENTE 1; y por la otra parte, ', font },
     { text: clean(formData.solicitante_nombre), font: boldFont },
@@ -435,7 +486,6 @@ async function createContractPdf(formData) {
   y = drawRichText(introSegments, { y, x: margin, width: width - margin * 2, lineHeight: 14 });
   y -= 15;
 
-  // --- CLÁUSULAS ---
   // --- CLÁUSULAS ---
   const clausula1 = [
     { text: 'El presente contrato tiene por objeto establecer los términos de colaboración entre EL AGENTE 1 y EL AGENTE 2 para promover, gestionar y/o contribuir en la intermediación del negocio inmobiliario relacionado con el inmueble identificado con el código ', font },
@@ -486,7 +536,7 @@ async function createContractPdf(formData) {
 
   // --- Lógica de firma simétrica ---
   const signatureBox = { width: 120, height: 50 };
-  const calculateDims = (img, maxWidth, maxHeight) => {
+  const calculateDims = (img: any, maxWidth: any, maxHeight: any) => {
     const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
     return { width: img.width * ratio, height: img.height * ratio };
   };
@@ -532,14 +582,14 @@ async function createContractPdf(formData) {
           height: agentDims.height,
         });
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(`[${formData.solicitud_id}] Error crítico al incrustar la firma del agente:`, e.message);
     }
   }
 
   currentPage.drawLine({ start: { x: agentSignatureX, y: firmaY - 35 }, end: { x: width - margin, y: firmaY - 35 }, thickness: 0.5, color: black });
-  currentPage.drawText(formData.solicitante_nombre.toUpperCase(), { x: agentSignatureX, y: firmaY - 48, font: boldFont, size: 9, maxWidth: 200 });
-  currentPage.drawText(`${formData.solicitante_tipo_documento} No. ${formData.solicitante_numero_documento}`, { x: agentSignatureX, y: firmaY - 58, font, size: 8 });
+  currentPage.drawText(clean(formData.solicitante_nombre).toUpperCase(), { x: agentSignatureX, y: firmaY - 48, font: boldFont, size: 9, maxWidth: 200 });
+  currentPage.drawText(`${clean(formData.solicitante_tipo_documento)} No. ${clean(formData.solicitante_numero_documento)}`, { x: agentSignatureX, y: firmaY - 58, font, size: 8 });
   currentPage.drawText('AGENTE 2', { x: agentSignatureX, y: firmaY - 68, font, size: 8 });
 
   // --- PIE DE PÁGINA FINAL ---
@@ -548,7 +598,7 @@ async function createContractPdf(formData) {
   return await pdfDoc.save();
 }
 
-async function uploadPdfToStorage(pdfBytes, fileName) {
+async function uploadPdfToStorage(pdfBytes: any, fileName: any) {
   const supabaseAdminClient = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''

@@ -80,6 +80,7 @@ function AgendaForm() {
           solicitante_celular: data.celular || prev.solicitante_celular,
           solicitante_tipo_documento: data.tipo_documento || prev.solicitante_tipo_documento,
           solicitante_numero_documento: data.numero_documento || prev.solicitante_numero_documento,
+          solicitante_perfil: data.perfil || prev.solicitante_perfil,
           // Si tienes más campos que guardar en perfil, agrégalos aquí
         }));
       } else {
@@ -104,6 +105,7 @@ function AgendaForm() {
       celular: formData.solicitante_celular,
       tipo_documento: formData.solicitante_tipo_documento,
       numero_documento: formData.solicitante_numero_documento,
+      perfil: formData.solicitante_perfil,
       updated_at: new Date(),
     };
 
@@ -132,7 +134,8 @@ function AgendaForm() {
       setFormData(prev => ({
         ...prev,
         firma_virtual_base64: reader.result,
-        firma_digital_archivo: file
+        firma_digital_archivo: file,
+        firma_fechahora_audit: new Date().toISOString() // Captura timestamp de subida
       }));
     };
     reader.readAsDataURL(file);
@@ -158,7 +161,11 @@ function AgendaForm() {
       if (name === 'tipo_cliente') { newState.interesado_nombre = ''; newState.interesado_tipo_documento = ''; newState.interesado_documento = ''; }
       else if (name === 'solicitante_tipo_documento') newState.solicitante_numero_documento = '';
       else if (name === 'interesado_tipo_documento') newState.interesado_documento = '';
-      else if (name === 'metodoFirma') { newState.firma_virtual_base64 = ''; newState.firma_digital_archivo = null; }
+      else if (name === 'metodoFirma') {
+        newState.firma_virtual_base64 = '';
+        newState.firma_digital_archivo = null;
+        newState.firma_fechahora_audit = null; // Reset audit
+      }
 
       return newState;
     });
@@ -173,7 +180,8 @@ function AgendaForm() {
     setFormData(prevState => ({
       ...prevState,
       firma_virtual_base64: signatureData,
-      firma_digital_archivo: null
+      firma_digital_archivo: null,
+      firma_fechahora_audit: new Date().toISOString() // Captura timestamp de firma
     }));
   }, []);
 
@@ -307,8 +315,15 @@ function AgendaForm() {
       Object.keys(payload).forEach(key => { if (typeof payload[key] === 'string') payload[key] = payload[key].trim(); });
 
       // --- Paso 4: Insertar en la base de datos ---
-      const { error: supabaseError } = await supabase.from('solicitudes').insert([payload]);
+      const { data: insertedData, error: supabaseError } = await supabase.from('solicitudes').insert([payload]).select();
+
       if (supabaseError) throw supabaseError;
+
+      // Obtener el ID de base de datos (PK) del registro insertado
+      const dbId = insertedData && insertedData[0] ? insertedData[0].id : null;
+
+      // Agregar el ID de base de datos al payload para la Edge Function
+      const payloadForFunction = { ...payload, id: dbId };
 
       // --- ¡NUEVO! Actualizar perfil del usuario si está autenticado ---
       if (session) {
@@ -323,7 +338,7 @@ function AgendaForm() {
         try {
           // --- CORRECCIÓN: Usamos el método invoke de Supabase, que maneja la autenticación anónima automáticamente.
           const { error: functionError } = await supabase.functions.invoke('send-confirmation-email', {
-            body: payload, // El payload ya es un objeto, no necesita JSON.stringify
+            body: payloadForFunction, // Enviamos el payload enriquecido con el ID de BD
           });
           if (functionError) {
             console.error("❌ Error en segundo plano al invocar la Edge Function:", functionError);

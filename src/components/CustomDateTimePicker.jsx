@@ -1,22 +1,24 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { format, set, isBefore, isAfter, startOfDay, addDays } from 'date-fns';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { es } from 'date-fns/locale';
 
-// Helper to get the current time in Bogotá (UTC-5), which does not observe DST.
+const TIMEZONE = 'America/Bogota'; // Zona horaria fija para toda la app
+
+// Helper para obtener "ahora" en la zona horaria de Bogotá
 const getBogotaNow = () => {
-  const now = new Date();
-  // Get the UTC time by adding the local timezone offset
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  // Subtract 5 hours for Bogotá time
-  return new Date(utc - (5 * 60 * 60000));
+  return toZonedTime(new Date(), TIMEZONE);
 };
 
 const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
   // --- TIMEZONE-AWARE STATE ---
-  // All "now" and "today" calculations are based on Bogotá time.
+  // Inicializamos todo basado en la hora actual de Bogotá
   const [bogotaNow] = useState(getBogotaNow());
+
+  // "Hoy" en Bogotá (inicio del día, 00:00:00)
   const [todayInBogota] = useState(() => {
-    const d = getBogotaNow();
-    d.setHours(0, 0, 0, 0);
-    return d;
+    const now = getBogotaNow();
+    return startOfDay(now);
   });
 
   // Estado para la fecha que se está viendo en el calendario (mes/año)
@@ -36,22 +38,27 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
     // Esta función simula una llamada a la base de datos para el día seleccionado.
     // Para la demostración, solo se agregan citas si se elige el día 15 del mes.
     const getBookedAppointmentsForDate = (date) => {
+      // Usamos getDate() directo ya que date viene "limpio" (00:00:00 en zona local del componente, 
+      // que tratamos como si fuera Bogotá por abstracción)
       if (date.getDate() === 15) {
-        return [
-          new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0), // 9:00 AM
-          new Date(date.getFullYear(), date.getMonth(), date.getDate(), 14, 15), // 2:15 PM
-        ];
+        // Simulamos citas a las 9:00 AM y 2:15 PM
+        // Creamos fechas base sobre la fecha seleccionada
+        const booking1 = new Date(date); booking1.setHours(9, 0, 0, 0);
+        const booking2 = new Date(date); booking2.setHours(14, 15, 0, 0);
+        return [booking1, booking2];
       }
       return [];
     };
 
     const bookedAppointments = getBookedAppointmentsForDate(selectedDate);
     const newDisabledTimes = new Set();
+
     bookedAppointments.forEach(booking => {
-      // Bloquear la hora exacta y los 15 minutos posteriores (total 30 min de bloqueo)
+      // Bloquear la hora exacta y los 15 minutos posteriores
       for (let i = 0; i < 2; i++) {
         const timeToDisable = new Date(booking.getTime() + i * 15 * 60000);
-        newDisabledTimes.add(`${String(timeToDisable.getHours()).padStart(2, '0')}:${String(timeToDisable.getMinutes()).padStart(2, '0')}`);
+        // Formato HH:mm para comparar con los slots
+        newDisabledTimes.add(format(timeToDisable, 'HH:mm'));
       }
     });
     setDisabledTimes(newDisabledTimes);
@@ -60,13 +67,18 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
   // Cuando se selecciona una fecha y una hora, se notifica al formulario padre.
   useEffect(() => {
     if (selectedDate && selectedTime) {
-      const [hour, minute] = selectedTime.split(':');
-      // Construct an ISO-like string with the Bogotá timezone offset (-05:00).
-      // This ensures the created Date object represents the exact moment in Bogotá time,
-      // regardless of the user's local timezone.
-      const dateString = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}T${hour}:${minute}:00-05:00`;
-      const finalDate = new Date(dateString);
-      onChange(finalDate);
+      const [hour, minute] = selectedTime.split(':').map(Number);
+
+      // 1. Tomamos la fecha seleccionada (que representa YYYY-MM-DD 00:00:00)
+      // 2. Establecemos la hora y minuto
+      const dateTimeLocal = set(selectedDate, { hours: hour, minutes: minute, seconds: 0, milliseconds: 0 });
+
+      // 3. Convertimos esa "fecha local abstracta" a una fecha real en la zona horaria de Bogotá
+      // fromZonedTime toma una fecha y asume que "esa hora" es en la zona horaria dada, devolviendo el UTC real.
+      // E.g. Si el usuario seleccionó "14:30" para Bogotá, esto nos da el timestamp UTC correcto.
+      const finalZonedDate = fromZonedTime(dateTimeLocal, TIMEZONE);
+
+      onChange(finalZonedDate);
     } else {
       onChange(null); // Si la selección está incompleta, se envía null.
     }
@@ -86,24 +98,24 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
   // --- Lógica para generar el calendario ---
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
-  const monthName = viewDate.toLocaleDateString('es-ES', { month: 'long' });
+  // Intl es seguro aquí porque viewDate es un objeto Date estándar manejado como local en render
+  // pero lo obtuvimos de source of truth de Bogota.
+  const monthName = format(viewDate, 'MMMM', { locale: es });
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
   // Generar los horarios de 8 AM a 5 PM en intervalos de 15 minutos
+  // Generar los horarios de 8 AM a 5 PM en intervalos de 15 minutos
   const timeSlots = useMemo(() => {
     const slots = [];
-    const baseDate = new Date();
-    const startTime = new Date(baseDate.setHours(8, 0, 0, 0));
-    const endTime = new Date(baseDate.setHours(17, 0, 0, 0));
+    // Usamos una fecha base arbitraria, solo nos importan las horas
+    let currentTime = set(new Date(), { hours: 8, minutes: 0, seconds: 0, milliseconds: 0 });
+    const endTime = set(new Date(), { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 }); // 5:00 PM
 
-    let currentTime = new Date(startTime);
-    while (currentTime <= endTime) {
-      slots.push(
-        `${String(currentTime.getHours()).padStart(2, '0')}:${String(currentTime.getMinutes()).padStart(2, '0')}`
-      );
-      currentTime.setMinutes(currentTime.getMinutes() + 15);
+    while (isBefore(currentTime, endTime) || currentTime.getTime() === endTime.getTime()) {
+      slots.push(format(currentTime, 'HH:mm'));
+      currentTime = new Date(currentTime.getTime() + 15 * 60000);
     }
     return slots;
   }, []);
@@ -138,9 +150,7 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
             const dayNumber = day + 1;
             // We compare date parts to avoid timezone issues with the `<` operator.
             const isPast =
-              year < todayInBogota.getFullYear() ||
-              (year === todayInBogota.getFullYear() && month < todayInBogota.getMonth()) ||
-              (year === todayInBogota.getFullYear() && month === todayInBogota.getMonth() && dayNumber < todayInBogota.getDate());
+              isBefore(new Date(year, month, dayNumber), todayInBogota);
 
             const isSelected = selectedDate &&
               selectedDate.getDate() === dayNumber &&
@@ -172,7 +182,7 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
         {selectedDate && (
           <div className="mt-6 border-t border-white/10 pt-4">
             <p className="text-center text-sm font-semibold text-off-white/80 mb-3">
-              Selecciona una hora para el {selectedDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}:
+              Selecciona una hora para el {format(selectedDate, "EEEE, d 'de' MMMM", { locale: es })}:
             </p>
             <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-2">
               {timeSlots.map(time => {
@@ -185,15 +195,14 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
 
                 let isTimeBlocked = false;
                 if (isToday) {
-                  // Calcula la hora mínima permitida (ahora + 4 horas)
+                  // Calcula la hora mínima permitida (ahora en Bogotá + 4 horas)
                   const minAllowedTime = new Date(bogotaNow.getTime() + 4 * 60 * 60 * 1000);
 
-                  // Crea un objeto Date para el horario actual en el día seleccionado
-                  const [hour, minute] = time.split(':').map(Number);
-                  const timeSlotDate = new Date(selectedDate);
-                  timeSlotDate.setHours(hour, minute, 0, 0);
+                  // Construimos la fecha/hora del slot en Bogotá para comparar
+                  const [slotHour, slotMinute] = time.split(':').map(Number);
+                  const timeSlotDate = set(todayInBogota, { hours: slotHour, minutes: slotMinute });
 
-                  if (timeSlotDate < minAllowedTime) isTimeBlocked = true;
+                  if (isBefore(timeSlotDate, minAllowedTime)) isTimeBlocked = true;
                 }
 
                 const isDisabled = disabledTimes.has(time) || isTimeBlocked;
@@ -215,7 +224,8 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
                     disabled={isDisabled}
                     className={`py-2 px-3 rounded-lg transition-all duration-200 text-sm ${timeBtnClass}`}
                   >
-                    {time}
+                    {/* Mostramos la hora en formato 12h AM/PM para el usuario */}
+                    {format(set(new Date(), { hours: parseInt(time.split(':')[0]), minutes: parseInt(time.split(':')[1]) }), 'hh:mm a')}
                   </button>
                 );
               })}
