@@ -2,7 +2,10 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import FormInput from './FormInput';
-import SignaturePadComponent from './SignaturePad';
+// Lazy load del componente de firma para no cargar la librería 'signature_pad' al inicio
+const SignaturePadComponent = React.lazy(() => import('./SignaturePad'));
+
+
 import CustomDateTimePicker from './CustomDateTimePicker';
 import CustomSelect from './CustomSelect';
 import AuthModal from './AuthModal';
@@ -281,9 +284,19 @@ function AgendaForm() {
     }
 
     setIsSubmitting(true);
+
+    // Timeout de seguridad: Si en 15 segundos no hay respuesta, cancelar la espera visual.
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('La solicitud está tardando demasiado. Por favor, verifica tu conexión o intenta de nuevo.')), 15000);
+    });
+
     try {
-      // --- ¡NUEVO! Paso 1: Obtener el ID consecutivo ---
-      const { data: newSolicitudId, error: idError } = await supabase.rpc('get_next_solicitud_id');
+      // --- ¡NUEVO! Paso 1: Obtener el ID consecutivo (Con Timeout) ---
+      // Usamos Promise.race para que gane el que termine primero: la petición o el timeout.
+      const { data: newSolicitudId, error: idError } = await Promise.race([
+        supabase.rpc('get_next_solicitud_id'),
+        timeoutPromise
+      ]);
       if (idError) {
         console.error("Error al obtener el ID de la solicitud:", idError);
         throw new Error('No se pudo generar un ID para la solicitud. Inténtalo de nuevo.');
@@ -459,7 +472,11 @@ function AgendaForm() {
                   <label className={`flex items-center transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}><input type="radio" name="metodoFirma" value="virtual" checked={formData.metodoFirma === 'virtual'} onChange={handleChange} className={radioClasses} /> Firma Virtual (Dibujar)</label>
                   <label className={`flex items-center transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}><input type="radio" name="metodoFirma" value="digital" checked={formData.metodoFirma === 'digital'} onChange={handleChange} className={radioClasses} /> Firma Digital (Subir archivo)</label>
                 </div>
-                {formData.metodoFirma === 'virtual' && <div className="mt-4"><label className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_virtual_base64 ? 'text-red-400' : 'text-off-white/80'}`}>Por favor, firma en el siguiente recuadro:</label><SignaturePadComponent onSignatureChange={handleSignatureChange} /></div>}
+                {formData.metodoFirma === 'virtual' && <div className="mt-4"><label className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_virtual_base64 ? 'text-red-400' : 'text-off-white/80'}`}>Por favor, firma en el siguiente recuadro:</label>
+                  <React.Suspense fallback={<div className="h-48 w-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">Cargando pad de firma...</div>}>
+                    <SignaturePadComponent onSignatureChange={handleSignatureChange} />
+                  </React.Suspense>
+                </div>}
                 {formData.metodoFirma === 'digital' && (<div className="mt-4"><label htmlFor="firma_digital_upload" className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_digital_archivo ? 'text-red-400' : 'text-off-white/80'}`}>Sube el archivo de tu firma (PNG, JPG):</label><input type="file" id="firma_digital_upload" name="firma_digital_archivo" onChange={handleFileChange} accept=".png,.jpg,.jpeg" className={`w-full text-sm text-off-white/80 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-soft-gold/20 file:text-soft-gold hover:file:bg-soft-gold/30 ${!!formErrors.firma_digital_archivo ? 'ring-2 ring-red-500 rounded-lg p-2' : ''}`} /></div>)}
               </div></fieldset>
             </>)}
