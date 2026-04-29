@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FaUserShield, FaRegHandshake } from 'react-icons/fa';
 import { BsInfoCircle } from 'react-icons/bs';
 
-const portadImageUrl = '/Vecy_agenda1.webp';
+const portadImageUrl = '/portada_forms.webp';
 
 // Pequeño componente para encapsular la lógica de los ítems con icono
 const InfoItem = ({ icon: Icon, children }) => (
