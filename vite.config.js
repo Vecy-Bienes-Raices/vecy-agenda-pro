@@ -53,7 +53,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['react-icons', 'signature_pad', 'react-signature-canvas'],
+          ui: ['react-icons', 'signature_pad'],
           utils: ['@supabase/supabase-js']
         }
       }
