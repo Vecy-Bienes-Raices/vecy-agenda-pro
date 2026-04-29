@@ -1,7 +1,12 @@
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// @ts-ignore
 import { PDFDocument, rgb, StandardFonts } from 'https://esm.sh/pdf-lib@1.17.1';
+// @ts-ignore
 import { encode, decode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+// @ts-ignore
 import nodemailer from "npm:nodemailer@6.9.13";
 
 declare const Deno: any;
@@ -100,7 +105,7 @@ serve(async (req: any) => {
 
 function getEmailContent(formData: any) {
   const { solicitante_nombre, solicitante_perfil, solicitud_id, servicio_solicitado, opcion_negocio, codigo_inmueble, fecha_cita_texto, solicitante_email, hora_cita } = formData;
-  const logoUrlParaEmail = 'https://i.imgur.com/3Yzqg4n.png';
+  const logoUrlParaEmail = 'cid:vecyLogo';
 
   // Fecha y hora actuales para el texto del correo
   const now = new Date();
@@ -131,7 +136,7 @@ function getEmailContent(formData: any) {
 
 function getAdminEmailContent(formData: any) {
   const { solicitud_id, solicitante_nombre } = formData;
-  const logoUrlParaEmail = 'https://i.imgur.com/3Yzqg4n.png';
+  const logoUrlParaEmail = 'cid:vecyLogo';
 
   // Construir tabla de datos
   let rows = '';
@@ -297,12 +302,21 @@ async function sendEmail(to: any, bcc: any, subject: any, html: any, attachments
   });
 
   // Mapear adjuntos al formato de Nodemailer
-  const nodeMailerAttachments = attachments.map(att => ({
+  const nodeMailerAttachments: any[] = attachments.map(att => ({
     filename: att.filename,
     content: att.content, // base64 string
     encoding: 'base64',
     contentType: att.type
   }));
+
+  // Agregar el logo inline
+  nodeMailerAttachments.push({
+    filename: 'logo.jpg',
+    content: vecyLogoBase64.split(',')[1],
+    encoding: 'base64',
+    contentType: 'image/jpeg',
+    cid: 'vecyLogo'
+  });
 
   const mailOptions = {
     from: `"Vecy Bienes Raíces" <${GMAIL_USER}>`,
@@ -552,7 +566,7 @@ async function createContractPdf(formData: any) {
       width: janiDims.width,
       height: janiDims.height,
     });
-  } catch (e) { console.error("Error al incrustar la firma de Jani:", e.message); }
+  } catch (e: any) { console.error("Error al incrustar la firma de Jani:", e.message); }
 
   currentPage.drawLine({ start: { x: margin, y: firmaY - 35 }, end: { x: margin + 200, y: firmaY - 35 }, thickness: 0.5, color: black });
   currentPage.drawText('JANI ALVES SOUZA', { x: margin + 40, y: firmaY - 48, font: boldFont, size: 9 });

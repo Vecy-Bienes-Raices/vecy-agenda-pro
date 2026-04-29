@@ -1,6 +1,9 @@
--- Función segura para obtener el siguiente ID de solicitud
-create or replace function public.get_next_solicitud_id() returns bigint language plpgsql security definer -- ¡CRUCIAL! Esto permite que la función se ejecute con permisos de administrador
-    as $$
+create or replace function public.get_next_solicitud_id() 
+returns bigint 
+language plpgsql 
+security definer -- ¡CRUCIAL! Esto permite que la función se ejecute con permisos de administrador
+set search_path = '' -- Fix para el warning: Function Search Path Mutable
+as $$
 declare next_id bigint;
 begin -- Intentar actualizar el contador existente
 update public.counters

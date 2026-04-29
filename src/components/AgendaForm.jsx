@@ -9,6 +9,8 @@ const SignaturePadComponent = React.lazy(() => import('./SignaturePad'));
 import CustomDateTimePicker from './CustomDateTimePicker';
 import CustomSelect from './CustomSelect';
 import AuthModal from './AuthModal';
+import { validateForm } from '../utils/validations';
+import { fetchProfile, updateProfile, submitSolicitud, invokeConfirmationEmail } from '../services/apiService';
 
 const logoUrl = '/Vecy_logo_oficial.png';
 
@@ -47,78 +49,41 @@ function AgendaForm() {
   const [session, setSession] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
+  const loadProfile = async (currentSession) => {
+    const { data } = await fetchProfile(currentSession);
+    if (data) {
+      setFormData(prev => ({
+        ...prev,
+        solicitante_email: currentSession.user.email || prev.solicitante_email,
+        solicitante_nombre: data.full_name || prev.solicitante_nombre,
+        solicitante_celular: data.celular || prev.solicitante_celular,
+        solicitante_tipo_documento: data.tipo_documento || prev.solicitante_tipo_documento,
+        solicitante_numero_documento: data.numero_documento || prev.solicitante_numero_documento,
+        solicitante_perfil: data.perfil || prev.solicitante_perfil,
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        solicitante_email: currentSession.user.email || prev.solicitante_email,
+        solicitante_nombre: currentSession.user.user_metadata.full_name || prev.solicitante_nombre,
+      }));
+    }
+  };
+
   // Efecto para verificar sesión y cargar datos del perfil
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session) getProfile(session);
+      if (session) loadProfile(session);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session) getProfile(session);
+      if (session) loadProfile(session);
     });
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const getProfile = async (currentSession) => {
-    try {
-      const { user } = currentSession;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      if (data) {
-        setFormData(prev => ({
-          ...prev,
-          solicitante_email: user.email || prev.solicitante_email,
-          solicitante_nombre: data.full_name || prev.solicitante_nombre,
-          solicitante_celular: data.celular || prev.solicitante_celular,
-          solicitante_tipo_documento: data.tipo_documento || prev.solicitante_tipo_documento,
-          solicitante_numero_documento: data.numero_documento || prev.solicitante_numero_documento,
-          solicitante_perfil: data.perfil || prev.solicitante_perfil,
-          // Si tienes más campos que guardar en perfil, agrégalos aquí
-        }));
-      } else {
-        // En caso de que no exista perfil aún (primera vez), al menos llenamos el email y nombre del user metadata
-        setFormData(prev => ({
-          ...prev,
-          solicitante_email: user.email || prev.solicitante_email,
-          solicitante_nombre: user.user_metadata.full_name || prev.solicitante_nombre,
-        }));
-      }
-    } catch (error) {
-      console.error('Error cargando perfil:', error.message);
-    }
-  };
-
-  const updateProfile = async () => {
-    if (!session?.user) return;
-
-    const updates = {
-      id: session.user.id,
-      full_name: formData.solicitante_nombre,
-      celular: formData.solicitante_celular,
-      tipo_documento: formData.solicitante_tipo_documento,
-      numero_documento: formData.solicitante_numero_documento,
-      perfil: formData.solicitante_perfil,
-      updated_at: new Date(),
-    };
-
-    try {
-      const { error } = await supabase.from('profiles').upsert(updates);
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error actualizando perfil:', error.message);
-    }
-  };
   const [formData, setFormData] = useState({
     solicitante_nombre: '', solicitante_perfil: '', solicitante_email: '', solicitante_celular: '',
     solicitante_tipo_documento: '', solicitante_numero_documento: '',
@@ -194,85 +159,6 @@ function AgendaForm() {
     navigate('/declinado');
   }, [navigate]);
 
-  // --- MEJORA: Función de validación separada ---
-  const validateForm = (data) => {
-    const errors = {};
-    // Helper para detectar números "basura" (ej: 111111, 123456)
-    const isFraudulentNumber = (str) => {
-      if (!str) return false;
-      const cleanStr = str.replace(/\D/g, ''); // Solo dígitos
-      if (cleanStr.length < 5) return false;
-      // 1. Todos los dígitos iguales (111111, 555555)
-      if (/^(\d)\1+$/.test(cleanStr)) return true;
-      // 2. Secuencias simples ascendentes o descendentes (123456, 987654)
-      const ascending = '01234567890123456789';
-      const descending = '98765432109876543210';
-      if (ascending.includes(cleanStr) || descending.includes(cleanStr)) return true;
-      return false;
-    };
-
-    const requiredFields = {
-      solicitante_nombre: 'Nombre Completo', solicitante_perfil: 'Perfil', solicitante_email: 'Correo Electrónico',
-      solicitante_celular: 'Celular', solicitante_tipo_documento: 'Tipo de Documento',
-      solicitante_numero_documento: 'Número de Documento', servicio_solicitado: 'Servicio solicitado',
-      codigo_inmueble: 'Código del Inmueble o Servicio', // ¡NUEVO! Obligatorio siempre.
-    };
-
-    if (data.servicio_solicitado === 'Visitar inmueble') {
-      requiredFields.fecha_cita_bogota = 'Fecha y Hora de la Visita';
-      requiredFields.cantidad_personas = 'Cantidad de Personas';
-    }
-
-    if (data.servicio_solicitado === 'Visitar inmueble' || data.servicio_solicitado === 'Avalúo comercial') {
-      requiredFields.opcion_negocio = 'Opción de Negocio'; // ¡NUEVO! Obligatorio si se muestra.
-    }
-
-    if (data.solicitante_perfil === 'Agente') {
-      requiredFields.tipo_cliente = 'Tipo de cliente';
-      requiredFields.interesado_nombre = 'Nombre del cliente';
-      requiredFields.interesado_tipo_documento = 'Tipo de documento del cliente';
-      requiredFields.interesado_documento = 'Número de documento del cliente';
-      requiredFields.metodoFirma = 'Método de Firma';
-      if (data.metodoFirma === 'virtual') requiredFields.firma_virtual_base64 = 'Firma del Agente';
-      else if (data.metodoFirma === 'digital') requiredFields.firma_digital_archivo = 'Archivo de Firma Digital';
-    }
-    requiredFields.autorizacion = 'Autorización Final';
-
-    for (const field in requiredFields) {
-      if (!data[field] || (typeof data[field] === 'string' && data[field].trim() === '')) {
-        errors[field] = `El campo "${requiredFields[field]}" es obligatorio.`;
-      }
-    }
-
-    // Validación de celular: mínimo 10 dígitos y no fraudulento
-    const celularLimpio = data.solicitante_celular ? data.solicitante_celular.replace(/\D/g, '') : '';
-    // Correo, Celular y Documento
-    if (data.solicitante_email && !/^\S+@\S+\.\S+$/.test(data.solicitante_email)) { errors.solicitante_email = 'Por favor, ingresa un formato de correo electrónico válido.'; }
-
-    if (celularLimpio) {
-      if (celularLimpio.length < 12) { // 57 + 10 dígitos = 12
-        errors.solicitante_celular = 'El número de celular debe tener 10 dígitos.';
-      } else if (isFraudulentNumber(celularLimpio.substring(2))) { // Validamos solo la parte del número (sin 57)
-        errors.solicitante_celular = 'Por favor, ingresa un número de celular válido y real.';
-      } else if (!/^573[\d]{9}$/.test(celularLimpio)) {
-        // Validación extra para Colombia: Debe empezar por 573 y tener 12 dígitos en total
-        errors.solicitante_celular = 'El número de celular debe ser un línea válida en Colombia (comenzar por 3).';
-      }
-    }
-    if (data.solicitante_numero_documento && isFraudulentNumber(data.solicitante_numero_documento)) {
-      errors.solicitante_numero_documento = 'El número de documento ingresado no parece válido.';
-    }
-    if (data.interesado_documento && isFraudulentNumber(data.interesado_documento)) {
-      errors.interesado_documento = 'El número de documento del cliente no parece válido.';
-    }
-    if (!data.autorizacion) { errors.autorizacion = 'Debes aceptar la cláusula de confidencialidad para continuar.'; }
-    if (data.metodoFirma === 'virtual' && !data.firma_virtual_base64) { errors.firma_virtual_base64 = 'La firma del agente es obligatoria.'; }
-    if (data.metodoFirma === 'digital' && !data.firma_digital_archivo) { errors.firma_digital_archivo = 'Debes subir el archivo de tu firma digital.'; }
-    if (data.servicio_solicitado === 'Visitar inmueble' && !data.cantidad_personas) { errors.cantidad_personas = 'Selecciona una cantidad válida de personas entre 1 y 6.'; }
-
-    return errors;
-  };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     const validationErrors = validateForm(formData);
@@ -291,78 +177,38 @@ function AgendaForm() {
     });
 
     try {
-      // --- ¡NUEVO! Paso 1: Obtener el ID consecutivo (Con Timeout) ---
-      // Usamos Promise.race para que gane el que termine primero: la petición o el timeout.
-      const { data: newSolicitudId, error: idError } = await Promise.race([
-        supabase.rpc('get_next_solicitud_id'),
-        timeoutPromise
-      ]);
-      if (idError) {
-        console.error("Error al obtener el ID de la solicitud:", idError);
-        throw new Error('No se pudo generar un ID para la solicitud. Inténtalo de nuevo.');
-      }
-
-      // --- ¡NUEVO! Paso 2: Formatear la fecha y la hora según los nuevos requisitos ---
+      // Formatear la fecha y la hora según los nuevos requisitos
       let fecha_cita_texto = null;
       let hora_cita = null;
 
       if (formData.fecha_cita_bogota) {
         const dateObject = new Date(formData.fecha_cita_bogota);
-
-        // Formato para fecha_cita_texto: "martes, 29 de julio de 2025"
         fecha_cita_texto = new Intl.DateTimeFormat('es-ES', {
           weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         }).format(dateObject);
-
-        // Formato para hora_cita: "04:30 PM" (Zona horaria de Bogotá)
         hora_cita = new Intl.DateTimeFormat('en-US', {
           hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota'
         }).format(dateObject);
       }
 
-      // --- Paso 3: Preparar el payload con el nuevo ID y los campos de texto de fecha/hora ---
-      const payload = { ...formData, solicitud_id: newSolicitudId, fecha_cita_texto, hora_cita, cantidad_personas: parseInt(formData.cantidad_personas, 10) };
+      // Preparar el payload
+      const payload = { ...formData, fecha_cita_texto, hora_cita, cantidad_personas: parseInt(formData.cantidad_personas, 10) || null };
       delete payload.fecha_cita_bogota;
-      delete payload.firma_digital_archivo; // MEJORA: Eliminar el objeto de archivo no serializable del payload.
+      delete payload.firma_digital_archivo; // Eliminar el objeto de archivo no serializable del payload.
       if (payload.solicitante_celular) payload.solicitante_celular = payload.solicitante_celular.replace('+', '');
       Object.keys(payload).forEach(key => { if (typeof payload[key] === 'string') payload[key] = payload[key].trim(); });
 
-      // --- Paso 4: Insertar en la base de datos ---
-      const { data: insertedData, error: supabaseError } = await supabase.from('solicitudes').insert([payload]).select();
+      // Enviar a Supabase mediante el servicio
+      const { dbId, finalPayload } = await submitSolicitud(payload, session, timeoutPromise);
 
-      if (supabaseError) throw supabaseError;
+      const payloadForFunction = { ...finalPayload, id: dbId };
 
-      // Obtener el ID de base de datos (PK) del registro insertado
-      const dbId = insertedData && insertedData[0] ? insertedData[0].id : null;
-
-      // Agregar el ID de base de datos al payload para la Edge Function
-      const payloadForFunction = { ...payload, id: dbId };
-
-      // --- ¡NUEVO! Actualizar perfil del usuario si está autenticado ---
-      if (session) {
-        await updateProfile();
-      }
-
-      // --- ¡MEJORA! Navegar inmediatamente y enviar el correo en segundo plano ---
+      // Navegar inmediatamente
       navigate('/gracias', { state: { formData } });
 
-      // --- Paso 5: Invocar la Edge Function (sin esperar la respuesta - "Fire and Forget") ---
-      const sendEmailInBackground = async () => {
-        try {
-          // --- CORRECCIÓN: Usamos el método invoke de Supabase, que maneja la autenticación anónima automáticamente.
-          const { error: functionError } = await supabase.functions.invoke('send-confirmation-email', {
-            body: payloadForFunction, // Enviamos el payload enriquecido con el ID de BD
-          });
-          if (functionError) {
-            console.error("❌ Error en segundo plano al invocar la Edge Function:", functionError);
-          } else {
-            console.log("✅ Solicitud de envío de correo procesada exitosamente en segundo plano.");
-          }
-        } catch (error) {
-          console.error("❌ Error en la petición de segundo plano a la Edge Function:", error);
-        }
-      };
-      sendEmailInBackground();
+      // Invocar la Edge Function en segundo plano
+      invokeConfirmationEmail(payloadForFunction);
+      
     } catch (error) {
       console.error("Error detallado al enviar a Supabase:", error);
       setError(error.message || 'No se pudo completar la solicitud. Revisa tu conexión o inténtalo más tarde.');
