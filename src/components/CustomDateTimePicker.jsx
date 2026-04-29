@@ -1,92 +1,55 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { format, set, isBefore, isAfter, startOfDay, addDays } from 'date-fns';
+import { format, set, isBefore, startOfDay } from 'date-fns';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { es } from 'date-fns/locale';
 
-const TIMEZONE = 'America/Bogota'; // Zona horaria fija para toda la app
+const TIMEZONE = 'America/Bogota';
 
-// Helper para obtener "ahora" en la zona horaria de Bogotá
-const getBogotaNow = () => {
-  return toZonedTime(new Date(), TIMEZONE);
-};
+const getBogotaNow = () => toZonedTime(new Date(), TIMEZONE);
 
 const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
-  // --- TIMEZONE-AWARE STATE ---
-  // Inicializamos todo basado en la hora actual de Bogotá
   const [bogotaNow] = useState(getBogotaNow());
-
-  // "Hoy" en Bogotá (inicio del día, 00:00:00)
-  const [todayInBogota] = useState(() => {
-    const now = getBogotaNow();
-    return startOfDay(now);
-  });
-
-  // Estado para la fecha que se está viendo en el calendario (mes/año)
+  const [todayInBogota] = useState(() => startOfDay(getBogotaNow()));
   const [viewDate, setViewDate] = useState(selected || bogotaNow);
-  // Estado para la fecha completa seleccionada (solo día, mes, año)
   const [selectedDate, setSelectedDate] = useState(selected ? new Date(selected.toDateString()) : null);
-  // Estado para la hora seleccionada en formato "HH:mm"
-  const [selectedTime, setSelectedTime] = useState(selected ? `${String(selected.getHours()).padStart(2, '0')}:${String(selected.getMinutes()).padStart(2, '0')}` : null);
-  // Estado para almacenar los horarios deshabilitados
+  const [selectedTime, setSelectedTime] = useState(
+    selected ? `${String(selected.getHours()).padStart(2, '0')}:${String(selected.getMinutes()).padStart(2, '0')}` : null
+  );
   const [disabledTimes, setDisabledTimes] = useState(new Set());
 
-  // --- GESTIÓN DE DISPONIBILIDAD (A FUTURO) ---
-  // Actualmente solo aplica la regla de las 4 horas de antelación.
-  // En una próxima fase, aquí consultaremos a Supabase ('solicitudes') para bloquear citas reales.
-  useEffect(() => {
-    // Por ahora limpiamos los bloqueos externos al cambiar de fecha
-    setDisabledTimes(new Set());
-  }, [selectedDate]);
+  useEffect(() => { setDisabledTimes(new Set()); }, [selectedDate]);
 
-  // Cuando se selecciona una fecha y una hora, se notifica al formulario padre.
   useEffect(() => {
     if (selectedDate && selectedTime) {
       const [hour, minute] = selectedTime.split(':').map(Number);
-
-      // 1. Tomamos la fecha seleccionada (que representa YYYY-MM-DD 00:00:00)
-      // 2. Establecemos la hora y minuto
       const dateTimeLocal = set(selectedDate, { hours: hour, minutes: minute, seconds: 0, milliseconds: 0 });
-
-      // 3. Convertimos esa "fecha local abstracta" a una fecha real en la zona horaria de Bogotá
-      // fromZonedTime toma una fecha y asume que "esa hora" es en la zona horaria dada, devolviendo el UTC real.
-      // E.g. Si el usuario seleccionó "14:30" para Bogotá, esto nos da el timestamp UTC correcto.
-      const finalZonedDate = fromZonedTime(dateTimeLocal, TIMEZONE);
-
-      onChange(finalZonedDate);
+      onChange(fromZonedTime(dateTimeLocal, TIMEZONE));
     } else {
-      onChange(null); // Si la selección está incompleta, se envía null.
+      onChange(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, selectedTime]);
 
   const handleDateSelect = (day) => {
-    const newSelectedDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
-    setSelectedDate(newSelectedDate);
-    setSelectedTime(null); // Resetea la hora al cambiar de fecha
+    setSelectedDate(new Date(viewDate.getFullYear(), viewDate.getMonth(), day));
+    setSelectedTime(null);
   };
 
   const changeMonth = (amount) => {
     setViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + amount, 1));
   };
 
-  // --- Lógica para generar el calendario ---
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
-  // Intl es seguro aquí porque viewDate es un objeto Date estándar manejado como local en render
-  // pero lo obtuvimos de source of truth de Bogota.
   const monthName = format(viewDate, 'MMMM', { locale: es });
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
-  // Generar los horarios de 8 AM a 5 PM en intervalos de 15 minutos
-  // Generar los horarios de 8 AM a 5 PM en intervalos de 15 minutos
   const timeSlots = useMemo(() => {
     const slots = [];
-    // Usamos una fecha base arbitraria, solo nos importan las horas
     let currentTime = set(new Date(), { hours: 8, minutes: 0, seconds: 0, milliseconds: 0 });
-    const endTime = set(new Date(), { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 }); // 5:00 PM
-
+    const endTime = set(new Date(), { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
     while (isBefore(currentTime, endTime) || currentTime.getTime() === endTime.getTime()) {
       slots.push(format(currentTime, 'HH:mm'));
       currentTime = new Date(currentTime.getTime() + 15 * 60000);
@@ -94,48 +57,102 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
     return slots;
   }, []);
 
-  // Clases condicionales para el estado de error
   const errorBorderClasses = 'border-red-500';
-  const defaultBorderClasses = 'border-white/10';
+  const defaultBorderClasses = 'border-gold-bright/25';
   const errorLabelClasses = 'text-red-400';
-  const defaultLabelClasses = 'text-off-white/80';
+  const defaultLabelClasses = 'text-vecy-muted';
 
   return (
     <div className="flex flex-col w-full">
-      <label className={`mb-2 text-sm font-medium transition-colors duration-300 ${error ? errorLabelClasses : defaultLabelClasses}`}>{label}</label>
-      <div className={`bg-black/20 p-4 rounded-lg border transition-colors duration-300 ${error ? errorBorderClasses : defaultBorderClasses}`}>
-        {/* Encabezado del Calendario */}
+      <label className={`mb-2 text-sm font-medium transition-colors duration-300 ${error ? errorLabelClasses : defaultLabelClasses}`}>
+        {label}
+      </label>
+
+      {/* Contenedor principal — Glassmorphism vibrante */}
+      <div
+        className={`p-4 rounded-xl border-2 transition-all duration-300 ${error ? errorBorderClasses : defaultBorderClasses}`}
+        style={{
+          background: 'linear-gradient(135deg, rgba(10,10,10,0.92) 0%, rgba(18,18,18,0.88) 100%)',
+          backdropFilter: 'blur(24px)',
+          boxShadow: error
+            ? '0 0 20px rgba(220,38,38,0.2)'
+            : '0 0 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(212,175,55,0.1)',
+        }}>
+
+        {/* Línea decorativa dorada superior */}
+        <div style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.5), transparent)', marginBottom: '1rem' }} />
+
+        {/* Encabezado del Calendario — Flechas iluminadas */}
         <div className="flex justify-between items-center mb-4">
-          <button type="button" onClick={() => changeMonth(-1)} className="text-2xl text-soft-gold/80 hover:text-soft-gold transition-colors">‹</button>
+          <button
+            type="button"
+            onClick={() => changeMonth(-1)}
+            className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
+            style={{
+              background: 'rgba(191,149,63,0.12)',
+              border: '1px solid rgba(212,175,55,0.35)',
+              color: '#d4af37',
+              fontSize: '1.5rem',
+              lineHeight: 1,
+              boxShadow: '0 0 12px rgba(212,175,55,0.25)',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(191,149,63,0.25)'; e.currentTarget.style.boxShadow = '0 0 20px rgba(212,175,55,0.6)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(191,149,63,0.12)'; e.currentTarget.style.boxShadow = '0 0 12px rgba(212,175,55,0.25)'; }}
+          >‹</button>
+
           <div className="text-center">
-            <p className="font-semibold text-lg text-off-white capitalize">{monthName}</p>
-            <p className="text-sm text-off-white/60">{year}</p>
+            <p className="font-bold text-lg capitalize section-legend-gold">{monthName}</p>
+            <p className="text-sm" style={{ color: '#a1a1aa' }}>{year}</p>
           </div>
-          <button type="button" onClick={() => changeMonth(1)} className="text-2xl text-soft-gold/80 hover:text-soft-gold transition-colors">›</button>
+
+          <button
+            type="button"
+            onClick={() => changeMonth(1)}
+            className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
+            style={{
+              background: 'rgba(191,149,63,0.12)',
+              border: '1px solid rgba(212,175,55,0.35)',
+              color: '#d4af37',
+              fontSize: '1.5rem',
+              lineHeight: 1,
+              boxShadow: '0 0 12px rgba(212,175,55,0.25)',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(191,149,63,0.25)'; e.currentTarget.style.boxShadow = '0 0 20px rgba(212,175,55,0.6)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(191,149,63,0.12)'; e.currentTarget.style.boxShadow = '0 0 12px rgba(212,175,55,0.25)'; }}
+          >›</button>
         </div>
 
         {/* Grilla del Calendario */}
         <div className="grid grid-cols-7 gap-1 text-center">
-          {daysOfWeek.map(day => <div key={day} className="text-xs font-bold text-off-white/50">{day}</div>)}
-          {/* Espacios en blanco para los días antes del 1ro del mes */}
+          {/* Días de la semana */}
+          {daysOfWeek.map(day => (
+            <div key={day} className="text-xs font-bold pb-2" style={{ color: '#bf953f', letterSpacing: '0.05em' }}>{day}</div>
+          ))}
+          {/* Espacios vacíos */}
           {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} />)}
           {/* Días del mes */}
           {Array.from({ length: daysInMonth }).map((_, day) => {
             const dayNumber = day + 1;
-            // We compare date parts to avoid timezone issues with the `<` operator.
-            const isPast =
-              isBefore(new Date(year, month, dayNumber), todayInBogota);
-
+            const isPast = isBefore(new Date(year, month, dayNumber), todayInBogota);
             const isSelected = selectedDate &&
               selectedDate.getDate() === dayNumber &&
               selectedDate.getMonth() === month &&
               selectedDate.getFullYear() === year;
 
-            let dayClass = 'text-off-white/80 hover:bg-white/10';
+            let btnStyle = {};
+            let btnClass = 'w-9 h-9 rounded-full transition-all duration-200 text-sm font-medium';
+
             if (isPast) {
-              dayClass = 'text-off-white/30 cursor-not-allowed';
+              btnStyle = { color: '#3f3f46', cursor: 'not-allowed' };
             } else if (isSelected) {
-              dayClass = 'bg-soft-gold text-volcanic-black font-bold';
+              btnStyle = {
+                background: 'linear-gradient(135deg, #d4af37 0%, #bf953f 100%)',
+                color: '#000000',
+                fontWeight: 800,
+                boxShadow: '0 0 16px rgba(212,175,55,0.7), 0 0 32px rgba(191,149,63,0.3)',
+              };
+            } else {
+              btnStyle = { color: '#e4e4e7' };
             }
 
             return (
@@ -144,7 +161,10 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
                 key={dayNumber}
                 onClick={() => !isPast && handleDateSelect(dayNumber)}
                 disabled={isPast}
-                className={`w-9 h-9 rounded-full transition-all duration-200 ${dayClass}`}
+                className={btnClass}
+                style={btnStyle}
+                onMouseEnter={e => { if (!isPast && !isSelected) { e.currentTarget.style.background = 'rgba(191,149,63,0.18)'; e.currentTarget.style.color = '#d4af37'; } }}
+                onMouseLeave={e => { if (!isPast && !isSelected) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#e4e4e7'; } }}
               >
                 {dayNumber}
               </button>
@@ -152,16 +172,15 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
           })}
         </div>
 
-        {/* Selector de Hora (aparece al seleccionar una fecha) */}
+        {/* Selector de Hora */}
         {selectedDate && (
-          <div className="mt-6 border-t border-white/10 pt-4">
-            <p className="text-center text-sm font-semibold text-off-white/80 mb-3">
+          <div className="mt-6 pt-4" style={{ borderTop: '1px solid rgba(212,175,55,0.2)' }}>
+            <p className="text-center text-sm font-semibold mb-3 section-legend-gold">
               Selecciona una hora para el {format(selectedDate, "EEEE, d 'de' MMMM", { locale: es })}:
             </p>
-            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-2">
+            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1">
               {timeSlots.map(time => {
-                const isSelected = selectedTime === time;
-
+                const isTimeSelected = selectedTime === time;
                 const isToday = selectedDate &&
                   selectedDate.getFullYear() === todayInBogota.getFullYear() &&
                   selectedDate.getMonth() === todayInBogota.getMonth() &&
@@ -169,25 +188,32 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
 
                 let isTimeBlocked = false;
                 if (isToday) {
-                  // Calcula la hora mínima permitida (ahora en Bogotá + 4 horas)
                   const minAllowedTime = new Date(bogotaNow.getTime() + 4 * 60 * 60 * 1000);
-
-                  // Construimos la fecha/hora del slot en Bogotá para comparar
                   const [slotHour, slotMinute] = time.split(':').map(Number);
                   const timeSlotDate = set(todayInBogota, { hours: slotHour, minutes: slotMinute });
-
                   if (isBefore(timeSlotDate, minAllowedTime)) isTimeBlocked = true;
                 }
 
                 const isDisabled = disabledTimes.has(time) || isTimeBlocked;
 
-                let timeBtnClass = '';
+                let timeStyle = {};
+                let timeClass = 'py-2 px-1 rounded-lg transition-all duration-200 text-xs font-semibold';
+
                 if (isDisabled) {
-                  timeBtnClass = 'bg-gray-700 text-gray-500 cursor-not-allowed line-through';
-                } else if (isSelected) {
-                  timeBtnClass = 'bg-soft-gold text-volcanic-black font-bold shadow-luminous-gold';
+                  timeStyle = { background: 'rgba(39,39,42,0.5)', color: '#52525b', textDecoration: 'line-through', cursor: 'not-allowed' };
+                } else if (isTimeSelected) {
+                  timeStyle = {
+                    background: 'linear-gradient(135deg, #d4af37 0%, #bf953f 100%)',
+                    color: '#000000',
+                    boxShadow: '0 0 14px rgba(212,175,55,0.7)',
+                    fontWeight: 800,
+                  };
                 } else {
-                  timeBtnClass = 'bg-esmeralda text-white hover:bg-green-500';
+                  timeStyle = {
+                    background: 'rgba(16,185,129,0.15)',
+                    border: '1px solid rgba(16,185,129,0.3)',
+                    color: '#6ee7b7',
+                  };
                 }
 
                 return (
@@ -196,9 +222,11 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
                     key={time}
                     onClick={() => !isDisabled && setSelectedTime(time)}
                     disabled={isDisabled}
-                    className={`py-2 px-3 rounded-lg transition-all duration-200 text-sm ${timeBtnClass}`}
+                    className={timeClass}
+                    style={timeStyle}
+                    onMouseEnter={e => { if (!isDisabled && !isTimeSelected) { e.currentTarget.style.background = 'rgba(16,185,129,0.28)'; e.currentTarget.style.boxShadow = '0 0 10px rgba(16,185,129,0.4)'; } }}
+                    onMouseLeave={e => { if (!isDisabled && !isTimeSelected) { e.currentTarget.style.background = 'rgba(16,185,129,0.15)'; e.currentTarget.style.boxShadow = 'none'; } }}
                   >
-                    {/* Mostramos la hora en formato 12h AM/PM para el usuario */}
                     {format(set(new Date(), { hours: parseInt(time.split(':')[0]), minutes: parseInt(time.split(':')[1]) }), 'hh:mm a')}
                   </button>
                 );
@@ -206,6 +234,9 @@ const CustomDateTimePicker = ({ label, selected, onChange, error }) => {
             </div>
           </div>
         )}
+
+        {/* Línea decorativa dorada inferior */}
+        <div style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.3), transparent)', marginTop: '1rem' }} />
       </div>
     </div>
   );

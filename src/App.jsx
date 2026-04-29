@@ -5,14 +5,21 @@ const WelcomeScreen = lazy(() => import('./components/WelcomeScreen'));
 const AgendaForm = lazy(() => import('./components/AgendaForm'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./components/TermsOfService'));
-const GraciasScreen = lazy(() => import('./components/GraciasScreen.jsx')); // MEJORA: Se añade la extensión .jsx y se actualiza el componente
-const DeclineScreen = lazy(() => import('./components/DeclineScreen.jsx')); // CORRECCIÓN: Se añade la extensión .jsx para ser explícitos
-import ScrollToTop from './components/ScrollToTop'; // 1. Importamos el nuevo componente
+const GraciasScreen = lazy(() => import('./components/GraciasScreen.jsx'));
+const DeclineScreen = lazy(() => import('./components/DeclineScreen.jsx'));
+import ScrollToTop from './components/ScrollToTop';
 
-// Componente "Wrapper" que da el estilo de fondo a todas las páginas
+// Componente "Wrapper" — Vecy Gold Edition
 const Layout = ({ children }) => (
-  <main className="bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-caramel-light to-caramel-dark min-h-screen flex items-center justify-center p-2 sm:p-4 font-sans">
-    <div className="w-full max-w-4xl bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-6 md:p-12 overflow-y-auto">
+  <main className="min-h-screen flex items-center justify-center p-2 sm:p-4 font-sans"
+    style={{ background: 'radial-gradient(ellipse at center, #1c1c1c 0%, #000000 70%)' }}>
+    <div className="w-full max-w-4xl rounded-2xl overflow-y-auto"
+      style={{
+        background: 'linear-gradient(135deg, rgba(10,10,10,0.98) 0%, rgba(18,18,18,0.95) 100%)',
+        border: '1px solid rgba(212, 175, 55, 0.18)',
+        boxShadow: '0 0 80px rgba(0,0,0,0.9), 0 0 40px rgba(191,149,63,0.07)',
+        padding: 'clamp(1rem, 4vw, 3rem)',
+      }}>
       {children}
     </div>
   </main>
@@ -30,7 +37,7 @@ function App() {
   return (
     <Router>
       <Layout>
-        <ScrollToTop /> {/* 2. Lo añadimos aquí para que se aplique a todas las rutas */}
+        <ScrollToTop />
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
             <Route path="/" element={<WelcomeScreen />} />

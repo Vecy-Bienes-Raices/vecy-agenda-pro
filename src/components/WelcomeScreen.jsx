@@ -28,7 +28,7 @@ function WelcomeScreen() {
       </div>
 
       <div className="px-4 sm:px-0">
-        <h1 className="text-4xl font-bold text-off-white mt-4">
+        <h1 className="text-4xl sm:text-5xl font-bold title-gold-gradient mt-4 tracking-tight">
           Vecy Agenda
         </h1>
 

@@ -15,7 +15,11 @@ function SignaturePadComponent({ onSignatureChange }) {
         canvas.height = canvas.offsetHeight * ratio;
         canvas.getContext("2d").scale(ratio, ratio);
 
-        signaturePadRef.current = new SignaturePad(canvas);
+        // Inicializamos SignaturePad con el color de tinta dorado
+        signaturePadRef.current = new SignaturePad(canvas, {
+          penColor: '#bf953f' // Oro Vecy
+        });
+
         signaturePadRef.current.addEventListener("endStroke", () => {
           if (!signaturePadRef.current.isEmpty()) {
             const signatureData = signaturePadRef.current.toDataURL();
@@ -23,13 +27,12 @@ function SignaturePadComponent({ onSignatureChange }) {
           }
         });
       }
-    }, 0); // Este timeout de 0 es una técnica para ejecutar esto en el siguiente "tick" del navegador
+    }, 0);
 
     return () => {
-      // Limpiamos el timeout si el componente se desmonta
       clearTimeout(timeoutId);
     };
-  }, []);
+  }, [onSignatureChange]);
 
   const handleClear = () => {
     if (signaturePadRef.current) {
@@ -39,15 +42,20 @@ function SignaturePadComponent({ onSignatureChange }) {
   };
 
   return (
-    <div className="relative w-full border border-gray-400/50 rounded-lg bg-white">
-      <canvas ref={canvasRef} className="w-full h-48 rounded-lg"></canvas>
+    <div className="relative w-full border-2 border-soft-gold/30 rounded-xl overflow-hidden shadow-inner" style={{ backgroundColor: '#0a0a0a' }}>
+      <canvas ref={canvasRef} className="w-full h-48 cursor-crosshair"></canvas>
       <button 
         type="button" 
         onClick={handleClear}
-        className="absolute top-2 right-2 bg-gray-200/80 text-gray-800 text-xs font-semibold py-1 px-3 rounded-full hover:bg-gray-300"
+        className="absolute top-3 right-3 bg-vecy-card/80 text-vecy-muted text-[10px] uppercase tracking-wider font-bold py-1.5 px-3 rounded-md border border-vecy-border hover:bg-vecy-border hover:text-soft-gold transition-all duration-300"
       >
         Limpiar
       </button>
+      
+      {/* Indicador visual de firma */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none opacity-20">
+        <span className="text-[10px] text-soft-gold uppercase tracking-[0.2em] font-medium italic">Firma del Agente</span>
+      </div>
     </div>
   );
 }

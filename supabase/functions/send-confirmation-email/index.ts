@@ -146,7 +146,7 @@ function getEmailContent(formData: any) {
   const fechaActual = new Intl.DateTimeFormat('es-CO', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Bogota' }).format(now);
   const horaActual = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' }).format(now);
 
-  const baseHtml = (title: any, bodyContent: any) => `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style> @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap'); body { font-family: 'Poppins', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; } .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.07); border: 1px solid #e1e1e1; } .header { background-color: #3E2723; padding: 30px; text-align: center; } .header img { max-width: 120px; } .content { padding: 35px 40px; color: #333333; } .content h2 { color: #3E2723; font-size: 22px; margin-top: 0; font-weight: 700; } .content p { font-size: 16px; line-height: 1.7; margin-bottom: 20px; } .highlight { background-color: #fcfcfc; padding: 15px 20px; border-left: 4px solid #D4AF37; margin-top: 25px; border-radius: 4px; } .highlight p { font-size: 15px; margin: 0; } .footer { background-color: #3E2723; padding: 20px; text-align: center; font-size: 12px; color: #d7ccc8; } .footer a { color: #D4AF37; text-decoration: none; } </style></head><body><div class="container"><div class="header"><img src="${logoUrlParaEmail}" alt="Vecy Bienes Raíces Logo"></div><div class="content"><h2>${title}</h2>${bodyContent}</div><div class="footer"><p>Vecy Bienes Raíces S.A.S. © ${new Date().getFullYear()}</p><p><a href="https://vecy.com.co" target="_blank">vecy.com.co</a></p></div></div></body></html>`;
+  const baseHtml = (title: any, bodyContent: any) => `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style> @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap'); body { font-family: 'Poppins', Arial, sans-serif; margin: 0; padding: 0; background-color: #0a0a0a; } .container { max-width: 600px; margin: 20px auto; background-color: #121212; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #bf953f33; } .header { background-color: #000000; padding: 30px; text-align: center; border-bottom: 2px solid #bf953f; } .header img { max-width: 120px; filter: drop-shadow(0 0 8px rgba(191, 149, 63, 0.4)); } .content { padding: 35px 40px; color: #f0f0f0; } .content h2 { color: #bf953f; font-size: 22px; margin-top: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; } .content p { font-size: 16px; line-height: 1.7; margin-bottom: 20px; } .highlight { background-color: #1a1a1a; padding: 15px 20px; border-left: 4px solid #bf953f; margin-top: 25px; border-radius: 4px; } .highlight p { font-size: 15px; margin: 0; color: #bf953f; font-weight: 600; } .footer { background-color: #000000; padding: 20px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #333; } .footer a { color: #bf953f; text-decoration: none; font-weight: 600; } </style></head><body><div class="container"><div class="header"><img src="${logoUrlParaEmail}" alt="Vecy Bienes Raíces Logo"></div><div class="content"><h2>${title}</h2>${bodyContent}</div><div class="footer"><p>Vecy Bienes Raíces S.A.S. © ${new Date().getFullYear()} | Gold Edition</p><p><a href="https://vecy.com.co" target="_blank">vecy.com.co</a></p></div></div></body></html>`;
 
   const subject = `✅ Solicitud #${solicitud_id} Recibida | Vecy Agenda`;
   const title = `¡Hola, ${solicitante_nombre}! Hemos recibido tu solicitud 🏠✨`;
@@ -195,13 +195,14 @@ function getAdminEmailContent(formData: any) {
     <head>
       <meta charset="UTF-8">
       <style>
-        body { font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px; }
-        .container { background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
-        .header { text-align: center; margin-bottom: 20px; }
+        body { font-family: Arial, sans-serif; background-color: #0a0a0a; padding: 20px; color: #f0f0f0; }
+        .container { background-color: #121212; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); max-width: 600px; margin: 0 auto; border: 1px solid #bf953f33; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #bf953f; padding-bottom: 15px; }
         .header img { max-width: 100px; }
-        h2 { color: #333; text-align: center; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
-        th { background-color: #f47721; color: white; padding: 10px; text-align: left; }
+        h2 { color: #bf953f; text-align: center; text-transform: uppercase; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; background-color: #1a1a1a; }
+        th { background-color: #bf953f; color: #000; padding: 10px; text-align: left; }
+        td { border-bottom: 1px solid #333; color: #ccc; }
       </style>
     </head>
     <body>
@@ -260,8 +261,8 @@ async function sendWhatsAppNotification(formData: any) {
   const servicio = servicio_solicitado || 'Visitar inmueble';
   const codigo = codigo_inmueble || 'N/A';
 
-  // Usamos 'id' (PK de base de datos) para el título, si viene. Si no, usamos 'solicitud_id'.
-  const displayId = id || solicitud_id;
+  // Usamos siempre 'solicitud_id' (consecutivo) para coherencia
+  const displayId = solicitud_id;
 
   let mensajeContacto = '';
 
@@ -376,6 +377,8 @@ async function createContractPdf(formData: any) {
   const boldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
   const black = rgb(0, 0, 0);
   const gray = rgb(0.3, 0.3, 0.3);
+  const goldColor = rgb(0.749, 0.584, 0.247); // #bf953f en RGB (0-1)
+
 
   const margin = 50;
   let y = height - margin;
@@ -493,7 +496,7 @@ async function createContractPdf(formData: any) {
   const drawClause = (title: string, segments: any[], currentY: number): number => {
     currentY = checkAndAddPage(currentY, 32);
     // Título en negrita y un poco más grande
-    currentPage.drawText(title, { x: margin, y: currentY, font: boldFont, size: 12, color: black });
+    currentPage.drawText(title, { x: margin, y: currentY, font: boldFont, size: 11, color: goldColor });
     currentY -= 15;
     // Párrafo justificado
     currentY = drawRichText(segments, { y: currentY, x: margin, width: width - margin * 2, lineHeight: 14 });
@@ -503,19 +506,23 @@ async function createContractPdf(formData: any) {
   // --- ENCABEZADO ---
   try {
     const logoBytes = decode(vecyLogoBase64.split(',')[1]);
-    const vecyLogoImage = await pdfDoc.embedJpg(logoBytes);
+    const vecyLogoImage = await pdfDoc.embedPng(logoBytes);
     currentPage.drawImage(vecyLogoImage, { x: margin, y: y - 25, width: 50, height: 50 });
   } catch (e: any) { console.error("Error al incrustar el logo de Vecy en el PDF.", e.message); }
 
-  currentPage.drawText('CONTRATO DE PUNTAS COMPARTIDAS', { x: margin + 70, y: y, font: boldFont, size: 16, color: black });
-  currentPage.drawText('Acuerdo de Colaboración Inmobiliaria', { x: margin + 70, y: y - 18, font: font, size: 11, color: gray });
+  currentPage.drawText('CONTRATO DE PUNTAS COMPARTIDAS', { x: margin + 70, y: y, font: boldFont, size: 15, color: goldColor });
+  currentPage.drawText('Acuerdo de Colaboración Inmobiliaria | Gold Edition', { x: margin + 70, y: y - 16, font: font, size: 10, color: gray });
 
   if (formData.solicitud_id) {
-    const idText = `Solicitud ID: ${formData.solicitud_id}`;
+    const idText = `ID: ${formData.solicitud_id}`;
     const idTextWidth = boldFont.widthOfTextAtSize(idText, 9);
     currentPage.drawText(idText, { x: width - margin - idTextWidth, y: y, font: boldFont, size: 9, color: gray });
   }
-  y -= 70;
+
+  y -= 45;
+  // Línea divisoria dorada premium
+  currentPage.drawRectangle({ x: margin, y: y, width: width - (2 * margin), height: 1.5, color: goldColor });
+  y -= 25;
 
   // --- CUERPO DEL CONTRATO ---
   const visitDate = formData.fecha_cita ? new Date(formData.fecha_cita).toLocaleString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' }) : 'No especificada';

@@ -8,30 +8,34 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // En desarrollo, desactivamos el SW para evitar que cachee archivos viejos
+      devOptions: {
+        enabled: false,
+      },
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'favicon.ico'],
       manifest: {
         name: 'Vecy Agenda Pro',
         short_name: 'Vecy Agenda',
         description: 'Solicita visitas inmobiliarias y otros servicios de forma segura.',
-        theme_color: '#4b372a',
-        background_color: '#4b372a',
+        theme_color: '#bf953f',
+        background_color: '#000000',
         display: 'standalone',
         scope: '/',
         start_url: '/',
         orientation: 'portrait',
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: 'android-chrome-192x192.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'android-chrome-512x512.png',
             sizes: '512x512',
             type: 'image/png'
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'android-chrome-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'

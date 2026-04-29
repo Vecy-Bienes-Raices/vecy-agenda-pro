@@ -26,7 +26,9 @@ export const updateProfile = async (session, formData) => {
   const updates = {
     id: session.user.id,
     full_name: formData.solicitante_nombre,
-    celular: formData.solicitante_celular,
+    celular: formData.solicitante_celular
+      ? formData.solicitante_celular.replace(/^\+?57/, '').slice(0, 10)
+      : '',
     tipo_documento: formData.solicitante_tipo_documento,
     numero_documento: formData.solicitante_numero_documento,
     perfil: formData.solicitante_perfil,

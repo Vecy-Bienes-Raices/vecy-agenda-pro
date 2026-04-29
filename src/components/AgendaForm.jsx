@@ -20,7 +20,7 @@ function Spinner() {
 
 function AuthorizationCheckbox({ formData, handleChange, isAgentView, error }) {
   const legendText = isAgentView ? '5. Autorización Final' : '4. Autorización';
-  const legendClasses = `text-xl font-semibold px-2 -ml-2 transition-colors duration-300 ${error ? 'text-red-400' : 'text-off-white'}`;
+  const legendClasses = `text-xl font-semibold px-2 -ml-2 section-legend-gold transition-colors duration-300 ${error ? '!text-red-400' : ''}`;
   const labelClasses = `ml-3 block text-sm transition-colors duration-300 ${error ? 'text-red-400' : 'text-off-white/80'}`;
   const fieldsetClasses = `border-t-2 pt-6 transition-colors duration-300 ${error ? 'border-red-500' : 'border-soft-gold'}`;
   const checkboxClasses = `h-4 w-4 mt-1 bg-white accent-esmeralda focus:ring-soft-gold rounded transition-colors duration-300 ${error ? 'border-red-500 ring-1 ring-red-500' : 'border-off-white/50'}`;
@@ -49,6 +49,17 @@ function AgendaForm() {
   const [session, setSession] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
+  const normalizeCelular = (raw) => {
+    if (!raw) return '+57';
+    const digits = raw.replace(/\D/g, '');
+    // Si ya tiene el 57 delante (57XXXXXXXXXX)
+    if (digits.startsWith('57') && digits.length === 12) return `+${digits}`;
+    // Si son 10 dígitos directos (3XXXXXXXXX)
+    if (digits.length === 10 && digits.startsWith('3')) return `+57${digits}`;
+    // Fallback: agregar prefijo con lo que haya
+    return `+57${digits}`;
+  };
+
   const loadProfile = async (currentSession) => {
     const { data } = await fetchProfile(currentSession);
     if (data) {
@@ -56,7 +67,7 @@ function AgendaForm() {
         ...prev,
         solicitante_email: currentSession.user.email || prev.solicitante_email,
         solicitante_nombre: data.full_name || prev.solicitante_nombre,
-        solicitante_celular: data.celular || prev.solicitante_celular,
+        solicitante_celular: normalizeCelular(data.celular || prev.solicitante_celular),
         solicitante_tipo_documento: data.tipo_documento || prev.solicitante_tipo_documento,
         solicitante_numero_documento: data.numero_documento || prev.solicitante_numero_documento,
         solicitante_perfil: data.perfil || prev.solicitante_perfil,
@@ -65,7 +76,7 @@ function AgendaForm() {
       setFormData(prev => ({
         ...prev,
         solicitante_email: currentSession.user.email || prev.solicitante_email,
-        solicitante_nombre: currentSession.user.user_metadata.full_name || prev.solicitante_nombre,
+        solicitante_nombre: (currentSession.user.user_metadata?.full_name) || prev.solicitante_nombre,
       }));
     }
   };
@@ -121,7 +132,11 @@ function AgendaForm() {
         // Solo permite letras, espacios y caracteres con tilde/ñ
         newState[name] = val.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
       }
-      else if (name === 'solicitante_celular') newState[name] = `+57${val.replace(/\D/g, '')}`;
+      // El campo muestra solo los 10 dígitos; al cambiar reconstruimos el valor completo
+      else if (name === 'solicitante_celular') {
+        const digits = val.replace(/\D/g, '').slice(0, 10);
+        newState[name] = `+57${digits}`;
+      }
       else if (name === 'solicitante_numero_documento' && prev.solicitante_tipo_documento !== 'Pasaporte') newState[name] = val.replace(/\D/g, '');
       else if (name === 'interesado_documento' && ((prev.tipo_cliente === 'Persona' && prev.interesado_tipo_documento !== 'Pasaporte') || prev.tipo_cliente === 'Empresa')) newState[name] = val.replace(/\D/g, '');
 
@@ -178,8 +193,8 @@ function AgendaForm() {
 
       if (formData.fecha_cita_bogota) {
         const dateObject = new Date(formData.fecha_cita_bogota);
-        fecha_cita_texto = new Intl.DateTimeFormat('es-ES', {
-          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        fecha_cita_texto = new Intl.DateTimeFormat('es-CO', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Bogota'
         }).format(dateObject);
         hora_cita = new Intl.DateTimeFormat('en-US', {
           hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota'
@@ -224,9 +239,11 @@ function AgendaForm() {
   return (
     <form noValidate onSubmit={handleSubmit}>
       <div className="text-center mb-8">
-        <img src={logoUrl} alt="Logo oficial de Vecy" className="mx-auto h-20 w-20 mb-4" />
-        <h2 className="text-3xl font-bold text-off-white">Verificación de Identidad</h2>
-        <Link to="/" className="text-soft-gold text-sm hover:underline mt-1 inline-block">← Volver a la portada</Link>
+        <img src={logoUrl} alt="Logo oficial de Vecy" className="mx-auto h-20 w-20 mb-4 logo-glow-pulse" />
+        <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mt-1 block">
+          <span className="title-gold-gradient">Verificación de Identidad</span>
+        </h2>
+        <Link to="/" className="text-soft-gold text-sm hover:underline mt-2 inline-block opacity-70 hover:opacity-100 transition-opacity">← Volver a la portada</Link>
       </div>
 
       {!session ? (
@@ -240,7 +257,7 @@ function AgendaForm() {
           <button
             type="button"
             onClick={() => setShowAuthModal(true)}
-            className="bg-soft-gold/80 hover:bg-soft-gold text-volcanic-black font-bold py-3 px-10 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold transform hover:-translate-y-0.5"
+            className="bg-soft-gold hover:bg-gold-bright text-volcanic-black font-bold py-3 px-10 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold transform hover:-translate-y-0.5 btn-pulse-gold"
           >
             INICIAR SESIÓN / REGISTRARSE
           </button>
@@ -263,7 +280,7 @@ function AgendaForm() {
         <fieldset
           className={`border-t-2 border-soft-gold pt-6 mb-10 transition-all duration-500 ${!session ? 'opacity-50 grayscale pointer-events-none' : 'opacity-100'}`}
         >
-          <legend className="text-xl font-semibold text-off-white px-2 -ml-2">Consentimiento de Datos</legend>
+          <legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">Consentimiento de Datos</legend>
           <p className="text-off-white/80 mt-2">Para continuar, es necesario tu consentimiento. Al hacer clic en "Sí, autorizo", confirmas que has leído y aceptas nuestra <Link to="/politica-privacidad" target="_blank" rel="noopener noreferrer" className="font-semibold text-soft-gold hover:underline">Política de Privacidad</Link> y nuestros <Link to="/terminos-y-condiciones" target="_blank" rel="noopener noreferrer" className="font-semibold text-soft-gold hover:underline">Términos y Condiciones</Link>.</p>
           <div className="mt-6 flex gap-4">
             <button type="button" onClick={handleConsent} disabled={!session} className="bg-esmeralda hover:bg-green-500 text-white font-bold py-2 px-6 rounded-lg transition-all duration-300 shadow-lg hover:shadow-2xl hover:shadow-green-500/50 disabled:cursor-not-allowed">Sí, autorizo</button>
@@ -275,15 +292,15 @@ function AgendaForm() {
       <div className={`transition-opacity duration-700 ${consentGiven ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden pointer-events-none'}`}>
         {consentGiven && (
           <>
-            <fieldset className="border-t-2 border-soft-gold pt-6 mb-10"><legend className="text-xl font-semibold text-off-white px-2 -ml-2">1. Tus Datos</legend><div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <fieldset className="border-t-2 border-soft-gold pt-6 mb-10"><legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">1. Tus Datos</legend><div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <FormInput onChange={handleChange} value={formData.solicitante_nombre} label="Nombre Completo" id="solicitante_nombre" name="solicitante_nombre" type="text" placeholder="Ej: Juan Pérez" required error={!!formErrors.solicitante_nombre} />
               <CustomSelect label="Perfil" name="solicitante_perfil" value={formData.solicitante_perfil} onChange={handleChange} options={perfilOptions} placeholder="Selecciona tu perfil..." error={!!formErrors.solicitante_perfil} />
               <FormInput onChange={handleChange} value={formData.solicitante_email} label="Correo Electrónico" id="solicitante_email" name="solicitante_email" type="email" placeholder="tucorreo@ejemplo.com" required error={!!formErrors.solicitante_email} />
-              <FormInput onChange={handleChange} value={formData.solicitante_celular.substring(3)} label="Celular" id="solicitante_celular" name="solicitante_celular" type="tel" placeholder="3001234567" required adornment="+57" maxLength="10" pattern="[0-9]*" error={!!formErrors.solicitante_celular} />
+              <FormInput onChange={handleChange} value={formData.solicitante_celular.replace(/^\+?57/, '').slice(0, 10)} label="Celular" id="solicitante_celular" name="solicitante_celular" type="tel" placeholder="3001234567" required adornment="+57" maxLength="10" pattern="[0-9]*" error={!!formErrors.solicitante_celular} />
               <CustomSelect label="Tipo de Documento" name="solicitante_tipo_documento" value={formData.solicitante_tipo_documento} onChange={handleChange} options={tipoDocumentoOptions} placeholder="Selecciona un documento..." error={!!formErrors.solicitante_tipo_documento} />
               <FormInput onChange={handleChange} value={formData.solicitante_numero_documento} label="Número de Documento" id="solicitante_numero_documento" name="solicitante_numero_documento" type={isPassport ? "text" : "tel"} pattern={isPassport ? ".*" : "[0-9]*"} placeholder="Ej: 1234567890" required maxLength="15" error={!!formErrors.solicitante_numero_documento} />
             </div></fieldset>
-            <fieldset className="border-t-2 border-soft-gold pt-6 mb-10"><legend className="text-xl font-semibold text-off-white px-2 -ml-2">2. Detalles de la Solicitud</legend><div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <fieldset className="border-t-2 border-soft-gold pt-6 mb-10"><legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">2. Detalles de la Solicitud</legend><div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <CustomSelect label="¿Qué servicio necesitas?" name="servicio_solicitado" value={formData.servicio_solicitado} onChange={handleChange} options={servicioOptions} placeholder="Selecciona un servicio..." error={!!formErrors.servicio_solicitado} />
               {showBusinessOption && (<CustomSelect label="Opción de Negocio" name="opcion_negocio" value={formData.opcion_negocio} onChange={handleChange} options={negocioOptions} placeholder="Selecciona..." error={!!formErrors.opcion_negocio} />)}
               <FormInput value={formData.codigo_inmueble} onChange={handleChange} label="Código del Inmueble o Servicio" id="codigo_inmueble" name="codigo_inmueble" type="text" placeholder="Ej: 110AB" required error={!!formErrors.codigo_inmueble} />
@@ -295,13 +312,13 @@ function AgendaForm() {
                 </div>
               )}</fieldset>
             {showAgentSections && (<>
-              <fieldset className="border-t-2 border-soft-gold pt-6 mb-10"><legend className="text-xl font-semibold text-off-white px-2 -ml-2">3. Presenta a tu Cliente</legend><div className="p-4 bg-black/10 rounded-lg mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <fieldset className="border-t-2 border-soft-gold pt-6 mb-10"><legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">3. Presenta a tu Cliente</legend><div className="p-4 bg-black/10 rounded-lg mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <CustomSelect label="Tu cliente es:" name="tipo_cliente" value={formData.tipo_cliente} onChange={handleChange} options={tipoClienteOptions} placeholder="Selecciona..." error={!!formErrors.tipo_cliente} />
                 <FormInput value={formData.interesado_nombre} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Nombre completo del cliente" : "Razón Social de la Empresa"} id="interesado_nombre" name="interesado_nombre" type="text" placeholder="Nombre o Razón Social" error={!!formErrors.interesado_nombre} />
                 <CustomSelect label={formData.tipo_cliente === 'Persona' ? "Tipo de documento del cliente" : "Tipo de identidad empresarial"} name="interesado_tipo_documento" value={formData.interesado_tipo_documento} onChange={handleChange} options={tipoDocumentoClienteOptions} placeholder="Selecciona..." error={!!formErrors.interesado_tipo_documento} />
                 <FormInput value={formData.interesado_documento} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Número de documento del cliente" : "Número de NIT/Registro"} id="interesado_documento" name="interesado_documento" type={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? 'tel' : 'text'} pattern={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? '[0-9]*' : '.*'} placeholder="Número" maxLength="15" error={!!formErrors.interesado_documento} />
               </div></fieldset>
-              <fieldset className={`border-t-2 pt-6 transition-colors duration-300 ${!!formErrors.metodoFirma || !!formErrors.firma_virtual_base64 || !!formErrors.firma_digital_archivo ? 'border-red-500' : 'border-soft-gold'}`}><legend className="text-xl font-semibold text-off-white px-2 -ml-2">4. Firma del Agente</legend><div className="mt-4">
+              <fieldset className={`border-t-2 pt-6 transition-colors duration-300 ${!!formErrors.metodoFirma || !!formErrors.firma_virtual_base64 || !!formErrors.firma_digital_archivo ? 'border-red-500' : 'border-soft-gold'}`}><legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">4. Firma del Agente</legend><div className="mt-4">
                 <label className={`block text-sm font-medium transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}>Elige el método de firma:</label>
                 <div className="mt-2 flex gap-6">
                   <label className={`flex items-center transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}><input type="radio" name="metodoFirma" value="virtual" checked={formData.metodoFirma === 'virtual'} onChange={handleChange} className={radioClasses} /> Firma Virtual (Dibujar)</label>
@@ -316,7 +333,7 @@ function AgendaForm() {
               </div></fieldset>
             </>)}
             <AuthorizationCheckbox formData={formData} handleChange={handleChange} isAgentView={showAgentSections} error={!!formErrors.autorizacion} />
-            <div className="mt-8"><button type="submit" disabled={isSubmitting} className="w-full bg-soft-gold/80 hover:bg-soft-gold text-volcanic-black font-bold py-4 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? <Spinner /> : null}{isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}</button></div>
+            <div className="mt-8"><button type="submit" disabled={isSubmitting} className="w-full bg-soft-gold hover:bg-gold-bright text-volcanic-black font-bold py-4 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed btn-pulse-gold">{isSubmitting ? <Spinner /> : null}{isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}</button></div>
             {error && (<div className="mt-4 text-center text-red-400 bg-red-900/50 p-3 rounded-lg">{error}</div>)}
           </>
         )}
