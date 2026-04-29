@@ -10,7 +10,7 @@ import CustomDateTimePicker from './CustomDateTimePicker';
 import CustomSelect from './CustomSelect';
 import AuthModal from './AuthModal';
 import { validateForm } from '../utils/validations';
-import { fetchProfile, updateProfile, submitSolicitud, invokeConfirmationEmail } from '../services/apiService';
+import { fetchProfile, updateProfile, submitSolicitud } from '../services/apiService';
 
 const logoUrl = '/Vecy_logo_oficial.png';
 
@@ -165,19 +165,14 @@ function AgendaForm() {
     if (Object.keys(validationErrors).length > 0) {
       const fieldErrorFlags = Object.keys(validationErrors).reduce((acc, key) => ({ ...acc, [key]: true }), {});
       setFormErrors(fieldErrorFlags);
-      setError(Object.values(validationErrors)[0]); // Muestra el primer mensaje de error encontrado
+      setError(Object.values(validationErrors)[0]);
       return;
     }
 
     setIsSubmitting(true);
 
-    // Timeout de seguridad: Si en 15 segundos no hay respuesta, cancelar la espera visual.
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('La solicitud está tardando demasiado. Por favor, verifica tu conexión o intenta de nuevo.')), 15000);
-    });
-
     try {
-      // Formatear la fecha y la hora según los nuevos requisitos
+      // Formatear la fecha y la hora
       let fecha_cita_texto = null;
       let hora_cita = null;
 
@@ -191,26 +186,20 @@ function AgendaForm() {
         }).format(dateObject);
       }
 
-      // Preparar el payload
+      // Preparar el payload limpio
       const payload = { ...formData, fecha_cita_texto, hora_cita, cantidad_personas: parseInt(formData.cantidad_personas, 10) || null };
       delete payload.fecha_cita_bogota;
-      delete payload.firma_digital_archivo; // Eliminar el objeto de archivo no serializable del payload.
+      delete payload.firma_digital_archivo;
       if (payload.solicitante_celular) payload.solicitante_celular = payload.solicitante_celular.replace('+', '');
       Object.keys(payload).forEach(key => { if (typeof payload[key] === 'string') payload[key] = payload[key].trim(); });
 
-      // Enviar a Supabase mediante el servicio
-      const { dbId, finalPayload } = await submitSolicitud(payload, session, timeoutPromise);
+      // La Edge Function genera el ID, inserta en BD y envía notificaciones
+      await submitSolicitud(payload, session);
 
-      const payloadForFunction = { ...finalPayload, id: dbId };
-
-      // Navegar inmediatamente
       navigate('/gracias', { state: { formData } });
 
-      // Invocar la Edge Function en segundo plano
-      invokeConfirmationEmail(payloadForFunction);
-      
     } catch (error) {
-      console.error("Error detallado al enviar a Supabase:", error);
+      console.error('Error al enviar la solicitud:', error);
       setError(error.message || 'No se pudo completar la solicitud. Revisa tu conexión o inténtalo más tarde.');
     } finally {
       setIsSubmitting(false);

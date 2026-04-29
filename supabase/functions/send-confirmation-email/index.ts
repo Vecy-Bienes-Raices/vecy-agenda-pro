@@ -33,17 +33,51 @@ serve(async (req: any) => {
 
   try {
     const formData = await req.json();
-    const { solicitante_perfil, solicitud_id, solicitante_email, solicitante_nombre, servicio_solicitado } = formData;
+    const { solicitante_perfil, solicitante_email, solicitante_nombre, servicio_solicitado } = formData;
 
-    let pdfBytes = null;
+    // === PASO 1: Crear cliente admin (service_role) para operaciones privilegiadas ===
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // === PASO 2: Generar el ID consecutivo (server-side, seguro) ===
+    const { data: newSolicitudId, error: idError } = await supabaseAdmin
+      .rpc('get_next_solicitud_id');
+
+    if (idError) {
+      console.error('Error generando ID:', idError.message);
+      throw new Error('No se pudo generar el ID de la solicitud.');
+    }
+
+    // === PASO 3: Insertar el registro en la tabla solicitudes ===
+    const payload = { ...formData, solicitud_id: newSolicitudId };
+    // Limpiar campos que no van a la BD
+    delete payload.metodoFirma;
+
+    const { data: insertedData, error: insertError } = await supabaseAdmin
+      .from('solicitudes')
+      .insert([payload])
+      .select();
+
+    if (insertError) {
+      console.error('Error insertando solicitud:', insertError.message);
+      throw new Error('No se pudo guardar la solicitud en la base de datos.');
+    }
+
+    const dbId = insertedData && insertedData[0] ? insertedData[0].id : null;
+    const fullFormData = { ...payload, id: dbId };
+
+    console.log(`[${newSolicitudId}] Solicitud insertada con PK: ${dbId}`);
+
+    // === PASO 4: Generar PDF si es Agente ===
     let pdfAttachment = null;
 
-    // Solo si es Agente, se genera y procesa el PDF
     if (solicitante_perfil === 'Agente') {
-      console.log(`[${solicitud_id}] Perfil Agente detectado. Iniciando generación de PDF.`);
-      pdfBytes = await createContractPdf(formData);
+      console.log(`[${newSolicitudId}] Perfil Agente detectado. Iniciando generación de PDF.`);
+      const pdfBytes = await createContractPdf(fullFormData);
 
-      const pdfFileName = `Contrato_Puntas_${solicitud_id}_${formData.solicitante_nombre.replace(/\s/g, '_')}.pdf`;
+      const pdfFileName = `Contrato_Puntas_${newSolicitudId}_${(solicitante_nombre || '').replace(/\s/g, '_')}.pdf`;
 
       pdfAttachment = {
         content: encode(pdfBytes),
@@ -52,54 +86,54 @@ serve(async (req: any) => {
         disposition: 'attachment',
       };
 
-      // Sube el PDF a Supabase Storage
+      // Subir el PDF a Supabase Storage
       const { error } = await uploadPdfToStorage(pdfBytes, pdfFileName);
       if (error) {
-        console.error(`[${solicitud_id}] Error al subir PDF a Storage:`, error.message);
+        console.error(`[${newSolicitudId}] Error al subir PDF a Storage:`, error.message);
       } else {
-        console.log(`[${solicitud_id}] PDF guardado exitosamente en Storage.`);
+        console.log(`[${newSolicitudId}] PDF guardado exitosamente en Storage.`);
       }
     }
 
-    // Prepara y envía UN solo correo al usuario, con copia oculta a Vecy
-    const { subject, html } = getEmailContent(formData);
-
+    // === PASO 5: Enviar correo al cliente ===
+    const { subject, html } = getEmailContent(fullFormData);
     await sendEmail(
       solicitante_email,
-      null, // Sin BCC para el cliente
+      null,
       subject,
       html,
       pdfAttachment ? [pdfAttachment] : []
     );
 
-    // 2. Correo para VECY (Admin) con resumen de datos y PDF
-    const adminContent = getAdminEmailContent(formData);
+    // === PASO 6: Correo interno para VECY ===
+    const adminContent = getAdminEmailContent(fullFormData);
     await sendEmail(
       VECY_INTERNAL_EMAIL,
       null,
-      `🔔 Nueva Solicitud #${solicitud_id} - ${solicitante_perfil}`,
+      `🔔 Nueva Solicitud #${newSolicitudId} - ${solicitante_perfil}`,
       adminContent.html,
-      pdfAttachment ? [pdfAttachment] : [] // También se adjunta el PDF al admin
+      pdfAttachment ? [pdfAttachment] : []
     );
 
-    // 3. Notificación WhatsApp
-    await sendWhatsAppNotification(formData);
+    // === PASO 7: Notificación WhatsApp ===
+    await sendWhatsAppNotification(fullFormData);
 
-    console.log(`[${solicitud_id}] Correo enviado a ${solicitante_email} con BCC a ${VECY_INTERNAL_EMAIL}.`);
+    console.log(`[${newSolicitudId}] Proceso completo. Correo enviado a ${solicitante_email}.`);
 
-    return new Response(JSON.stringify({ message: "Correo procesado" }), {
+    return new Response(JSON.stringify({ message: 'Solicitud procesada', solicitud_id: newSolicitudId }), {
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       status: 200,
     });
 
   } catch (error: any) {
-    console.error("Error general en la Edge Function:", error);
+    console.error('Error general en la Edge Function:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       status: 500,
     });
   }
 });
+
 
 // ================== 3. LÓGICA DE CORREOS ==================
 

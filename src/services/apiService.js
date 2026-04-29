@@ -41,59 +41,27 @@ export const updateProfile = async (session, formData) => {
   }
 };
 
-export const submitSolicitud = async (payload, session, timeoutPromise) => {
-  // --- Paso 1: Obtener el ID consecutivo (Con Timeout) ---
-  const { data: newSolicitudId, error: idError } = await Promise.race([
-    supabase.rpc('get_next_solicitud_id'),
-    timeoutPromise
-  ]);
-  
-  if (idError) {
-    console.error("Error al obtener el ID de la solicitud:", idError);
-    throw new Error('No se pudo generar un ID para la solicitud. Inténtalo de nuevo.');
-  }
-
-  // --- Paso 2: Preparar el payload definitivo ---
-  const finalPayload = { ...payload, solicitud_id: newSolicitudId };
-
-  // --- Paso 3: Insertar en la base de datos ---
-  const { data: insertedData, error: supabaseError } = await supabase
-    .from('solicitudes')
-    .insert([finalPayload])
-    .select();
-
-  if (supabaseError) throw supabaseError;
-
-  // Obtener el ID de base de datos (PK) del registro insertado
-  const dbId = insertedData && insertedData[0] ? insertedData[0].id : null;
-
-  // --- Paso 4: Actualizar perfil del usuario si está autenticado ---
+/**
+ * Envía el payload completo a la Edge Function.
+ * La Edge Function genera el ID, inserta el registro y envía notificaciones.
+ * El frontend ya NO llama a get_next_solicitud_id ni inserta directamente en la BD.
+ */
+export const submitSolicitud = async (payload, session) => {
+  // Actualizar perfil del usuario autenticado en paralelo (sin bloquear el envío)
   if (session) {
-    // Reconstruimos un mini formData compatible con updateProfile
-    const profileData = {
-      solicitante_nombre: finalPayload.solicitante_nombre,
-      solicitante_celular: finalPayload.solicitante_celular,
-      solicitante_tipo_documento: finalPayload.solicitante_tipo_documento,
-      solicitante_numero_documento: finalPayload.solicitante_numero_documento,
-      solicitante_perfil: finalPayload.solicitante_perfil,
-    };
-    await updateProfile(session, profileData);
+    updateProfile(session, payload); // Fire and forget
   }
 
-  return { dbId, finalPayload };
-};
+  // Invocar la Edge Function que orquesta TODO el proceso servidor
+  const { data, error } = await supabase.functions.invoke('send-confirmation-email', {
+    body: payload,
+  });
 
-export const invokeConfirmationEmail = async (payloadForFunction) => {
-  try {
-    const { error: functionError } = await supabase.functions.invoke('send-confirmation-email', {
-      body: payloadForFunction,
-    });
-    if (functionError) {
-      console.error("❌ Error en segundo plano al invocar la Edge Function:", functionError);
-    } else {
-      console.log("✅ Solicitud de envío de correo procesada exitosamente en segundo plano.");
-    }
-  } catch (error) {
-    console.error("❌ Error en la petición de segundo plano a la Edge Function:", error);
+  if (error) {
+    console.error('❌ Error al invocar la Edge Function:', error);
+    throw new Error(error.message || 'No se pudo procesar la solicitud. Inténtalo de nuevo.');
   }
+
+  console.log('✅ Solicitud procesada exitosamente en el servidor.');
+  return data;
 };
