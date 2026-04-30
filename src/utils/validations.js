@@ -84,8 +84,6 @@ export const validateForm = (data) => {
     errors.interesado_documento = 'El número de documento del cliente no parece válido.';
   }
   if (!data.autorizacion) { errors.autorizacion = 'Debes aceptar la cláusula de confidencialidad para continuar.'; }
-  if (data.metodoFirma === 'virtual' && !data.firma_virtual_base64) { errors.firma_virtual_base64 = 'La firma de autorización es obligatoria.'; }
-  if (data.metodoFirma === 'digital' && !data.firma_digital_archivo) { errors.firma_digital_archivo = 'Debes subir el archivo de tu firma digital.'; }
   if (data.servicio_solicitado === 'Visitar inmueble' && !data.cantidad_personas) { errors.cantidad_personas = 'Selecciona una cantidad válida de personas entre 1 y 6.'; }
 
   // Validar campos de acompañantes
