@@ -16,11 +16,21 @@ export const validateForm = (data) => {
   const errors = {};
 
   const requiredFields = {
-    solicitante_nombre: 'Nombre Completo', solicitante_perfil: 'Perfil', solicitante_email: 'Correo Electrónico',
-    solicitante_celular: 'Celular', solicitante_tipo_documento: 'Tipo de Documento',
-    solicitante_numero_documento: 'Número de Documento', servicio_solicitado: 'Servicio solicitado',
-    codigo_inmueble: 'Código del Inmueble o Servicio',
+    solicitante_nombre: 'Nombre Completo o Razón Social', 
+    solicitante_tipo_persona: 'Tipo de Persona',
+    solicitante_perfil: 'Perfil', 
+    solicitante_email: 'Correo Electrónico',
+    solicitante_celular: 'Celular', 
+    solicitante_tipo_documento: 'Tipo de Documento',
+    solicitante_numero_documento: 'Número de Documento', 
+    servicio_solicitado: 'Servicio solicitado',
+    codigo_inmueble: 'Código del Inmueble o Servicio', 
+    nombre_inmueble: 'Nombre del Inmueble',
   };
+
+  if (data.solicitante_tipo_persona === 'Persona Jurídica') {
+    requiredFields.solicitante_representante_legal = 'Nombre del Representante Legal';
+  }
 
   if (data.servicio_solicitado === 'Visitar inmueble') {
     requiredFields.fecha_cita_bogota = 'Fecha y Hora de la Visita';
@@ -31,15 +41,18 @@ export const validateForm = (data) => {
     requiredFields.opcion_negocio = 'Opción de Negocio';
   }
 
-  if (data.solicitante_perfil === 'Agente') {
+  const isAgent = ['Agente', 'Agencia / Inmobiliaria', 'Bróker / Empresa', 'Constructora'].includes(data.solicitante_perfil);
+  if (isAgent) {
     requiredFields.tipo_cliente = 'Tipo de cliente';
     requiredFields.interesado_nombre = 'Nombre del cliente';
     requiredFields.interesado_tipo_documento = 'Tipo de documento del cliente';
     requiredFields.interesado_documento = 'Número de documento del cliente';
-    requiredFields.metodoFirma = 'Método de Firma';
-    if (data.metodoFirma === 'virtual') requiredFields.firma_virtual_base64 = 'Firma del Agente';
-    else if (data.metodoFirma === 'digital') requiredFields.firma_digital_archivo = 'Archivo de Firma Digital';
   }
+  
+  requiredFields.metodoFirma = 'Método de Firma';
+  if (data.metodoFirma === 'virtual') requiredFields.firma_virtual_base64 = 'Firma de Autorización';
+  else if (data.metodoFirma === 'digital') requiredFields.firma_digital_archivo = 'Archivo de Firma Digital';
+  
   requiredFields.autorizacion = 'Autorización Final';
 
   for (const field in requiredFields) {
@@ -72,9 +85,21 @@ export const validateForm = (data) => {
     errors.interesado_documento = 'El número de documento del cliente no parece válido.';
   }
   if (!data.autorizacion) { errors.autorizacion = 'Debes aceptar la cláusula de confidencialidad para continuar.'; }
-  if (data.metodoFirma === 'virtual' && !data.firma_virtual_base64) { errors.firma_virtual_base64 = 'La firma del agente es obligatoria.'; }
+  if (data.metodoFirma === 'virtual' && !data.firma_virtual_base64) { errors.firma_virtual_base64 = 'La firma de autorización es obligatoria.'; }
   if (data.metodoFirma === 'digital' && !data.firma_digital_archivo) { errors.firma_digital_archivo = 'Debes subir el archivo de tu firma digital.'; }
   if (data.servicio_solicitado === 'Visitar inmueble' && !data.cantidad_personas) { errors.cantidad_personas = 'Selecciona una cantidad válida de personas entre 1 y 6.'; }
+
+  // Validar campos de acompañantes
+  if (Array.isArray(data.acompanantes)) {
+    data.acompanantes.forEach((acomp, i) => {
+      if (!acomp.nombre || acomp.nombre.trim() === '') {
+        errors[`acomp_${i}_nombre`] = `El nombre del acompañante ${i + 1} es obligatorio.`;
+      }
+      if (!acomp.documento || acomp.documento.trim() === '') {
+        errors[`acomp_${i}_documento`] = `El documento del acompañante ${i + 1} es obligatorio.`;
+      }
+    });
+  }
 
   return errors;
 };

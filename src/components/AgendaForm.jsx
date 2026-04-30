@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import FormInput from './FormInput';
 // Lazy load del componente de firma para no cargar la librería 'signature_pad' al inicio
@@ -42,6 +42,7 @@ function AuthorizationCheckbox({ formData, handleChange, isAgentView, error }) {
 
 function AgendaForm() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [formErrors, setFormErrors] = useState({});
@@ -96,12 +97,32 @@ function AgendaForm() {
     return () => subscription.unsubscribe();
   }, []);
   const [formData, setFormData] = useState({
-    solicitante_nombre: '', solicitante_perfil: '', solicitante_email: '', solicitante_celular: '',
-    solicitante_tipo_documento: '', solicitante_numero_documento: '',
-    servicio_solicitado: '', opcion_negocio: '', codigo_inmueble: '', fecha_cita_bogota: null, cantidad_personas: '',
-    tipo_cliente: '', interesado_nombre: '', interesado_tipo_documento: '', interesado_documento: '',
+    solicitante_nombre: '', solicitante_tipo_persona: 'Persona Natural', solicitante_perfil: '', solicitante_email: '', solicitante_celular: '',
+    solicitante_tipo_documento: '', solicitante_numero_documento: '', solicitante_representante_legal: '',
+    servicio_solicitado: '', opcion_negocio: '',
+    nombre_inmueble: '', codigo_inmueble: '',
+    fecha_cita_bogota: null, cantidad_personas: '',
+    acompanantes: [],
+    tipo_cliente: 'Persona', interesado_nombre: '', interesado_tipo_documento: '', interesado_documento: '',
     firma_virtual_base64: '', autorizacion: false, metodoFirma: '', firma_digital_archivo: null,
   });
+
+  // --- Leer params de URL para pre-llenado desde Vecy Network ---
+  const urlInmueble = searchParams.get('inmueble') || '';
+  const urlCodigo = searchParams.get('codigo') || '';
+  const isLockedByUrl = searchParams.get('locked') === '1';
+
+  // Pre-llenar nombre e inmueble si vienen de la URL (solo al montar)
+  useEffect(() => {
+    if (urlInmueble || urlCodigo) {
+      setFormData(prev => ({
+        ...prev,
+        nombre_inmueble: urlInmueble || prev.nombre_inmueble,
+        codigo_inmueble: urlCodigo || prev.codigo_inmueble,
+      }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -129,18 +150,23 @@ function AgendaForm() {
 
       // Validaciones y formateo en tiempo real
       if (name === 'solicitante_nombre') {
-        // Solo permite letras, espacios y caracteres con tilde/ñ
-        newState[name] = val.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+        // Para personas naturales restringimos más, para jurídicas permitimos números/puntos
+        if (prev.solicitante_tipo_persona === 'Persona Natural') {
+          newState[name] = val.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+        } else {
+          newState[name] = val.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s.\-&]/g, '');
+        }
       }
       // El campo muestra solo los 10 dígitos; al cambiar reconstruimos el valor completo
       else if (name === 'solicitante_celular') {
         const digits = val.replace(/\D/g, '').slice(0, 10);
         newState[name] = `+57${digits}`;
       }
-      else if (name === 'solicitante_numero_documento' && prev.solicitante_tipo_documento !== 'Pasaporte') newState[name] = val.replace(/\D/g, '');
+      else if (name === 'solicitante_numero_documento' && prev.solicitante_tipo_documento !== 'Pasaporte' && prev.solicitante_tipo_persona !== 'Persona Jurídica') newState[name] = val.replace(/\D/g, '');
       else if (name === 'interesado_documento' && ((prev.tipo_cliente === 'Persona' && prev.interesado_tipo_documento !== 'Pasaporte') || prev.tipo_cliente === 'Empresa')) newState[name] = val.replace(/\D/g, '');
 
       // Lógica de limpieza de campos dependientes
+      if (name === 'solicitante_tipo_persona') { newState.solicitante_tipo_documento = ''; newState.solicitante_perfil = ''; newState.solicitante_numero_documento = ''; newState.solicitante_representante_legal = ''; }
       if (name === 'tipo_cliente') { newState.interesado_nombre = ''; newState.interesado_tipo_documento = ''; newState.interesado_documento = ''; }
       else if (name === 'solicitante_tipo_documento') newState.solicitante_numero_documento = '';
       else if (name === 'interesado_tipo_documento') newState.interesado_documento = '';
@@ -150,7 +176,23 @@ function AgendaForm() {
         newState.firma_fechahora_audit = null; // Reset audit
       }
 
+      // Cuando cambia la cantidad de personas, redimensionar el arreglo de acompañantes
+      if (name === 'cantidad_personas') {
+        const n = parseInt(val, 10) || 0;
+        const companions = n > 1 ? Array.from({ length: n - 1 }, (_, i) => prev.acompanantes[i] || { nombre: '', documento: '' }) : [];
+        newState.acompanantes = companions;
+      }
+
       return newState;
+    });
+  };
+
+  // Handler específico para los campos de acompañantes
+  const handleAcompananteChange = (index, field, value) => {
+    setFormData(prev => {
+      const updated = [...prev.acompanantes];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, acompanantes: updated };
     });
   };
 
@@ -202,7 +244,14 @@ function AgendaForm() {
       }
 
       // Preparar el payload limpio
-      const payload = { ...formData, fecha_cita_texto, hora_cita, cantidad_personas: parseInt(formData.cantidad_personas, 10) || null };
+      const payload = {
+        ...formData,
+        fecha_cita_texto,
+        hora_cita,
+        cantidad_personas: parseInt(formData.cantidad_personas, 10) || null,
+        // Acompañantes como array nativo — columna JSONB en Supabase
+        acompanantes: formData.acompanantes.length > 0 ? formData.acompanantes : null,
+      };
       delete payload.fecha_cita_bogota;
       delete payload.firma_digital_archivo;
       if (payload.solicitante_celular) payload.solicitante_celular = payload.solicitante_celular.replace('+', '');
@@ -222,17 +271,27 @@ function AgendaForm() {
   };
 
   const isPassport = formData.solicitante_tipo_documento === 'Pasaporte';
+  const isCompanyDoc = formData.solicitante_tipo_persona === 'Persona Jurídica';
   const isClientPassport = formData.interesado_tipo_documento === 'Pasaporte';
   const showVisitDetails = formData.servicio_solicitado === 'Visitar inmueble';
   const showBusinessOption = formData.servicio_solicitado === 'Visitar inmueble' || formData.servicio_solicitado === 'Avalúo comercial';
-  const showAgentSections = formData.solicitante_perfil === 'Agente';
-  const perfilOptions = [{ value: 'Cliente directo', label: 'Cliente directo' }, { value: 'Agente', label: 'Agente' }];
-  const tipoDocumentoOptions = [{ value: 'Cédula de ciudadanía', label: 'Cédula de ciudadanía' }, { value: 'Cédula de extranjería', label: 'Cédula de extranjería' }, { value: 'Pasaporte', label: 'Pasaporte' }];
+  const showAgentSections = formData.solicitante_perfil === 'Agente' || formData.solicitante_perfil === 'Agencia / Inmobiliaria' || formData.solicitante_perfil === 'Bróker / Empresa';
+  const tipoPersonaOptions = [{ value: 'Persona Natural', label: 'Persona Natural' }, { value: 'Persona Jurídica', label: 'Persona Jurídica' }];
+  
+  const perfilOptions = formData.solicitante_tipo_persona === 'Persona Natural'
+    ? [{ value: 'Cliente directo', label: 'Cliente directo' }, { value: 'Agente', label: 'Agente independiente' }]
+    : [{ value: 'Agencia / Inmobiliaria', label: 'Agencia / Inmobiliaria' }, { value: 'Bróker / Empresa', label: 'Bróker / Empresa' }, { value: 'Constructora', label: 'Constructora' }];
+  
+  const tipoDocumentoOptions = formData.solicitante_tipo_persona === 'Persona Natural' 
+    ? [{ value: 'Cédula de ciudadanía', label: 'Cédula de ciudadanía' }, { value: 'Cédula de extranjería', label: 'Cédula de extranjería' }, { value: 'Pasaporte', label: 'Pasaporte' }] 
+    : [{ value: 'NIT', label: 'NIT' }, { value: 'RUT', label: 'RUT' }, { value: 'Registro Mercantil', label: 'Registro Mercantil' }];
+
   const servicioOptions = [{ value: 'Visitar inmueble', label: 'Visitar inmueble' }, { value: 'Avalúo comercial', label: 'Avalúo comercial' }, { value: 'Préstamo sobre inmueble', label: 'Préstamo sobre inmueble' }, { value: 'Redacción de contrato', label: 'Redacción de contrato' }, { value: 'Marketing Digital con IA', label: 'Marketing Digital con IA' }, { value: 'Curso de IA', label: 'Curso de IA' }];
   const negocioOptions = [{ value: 'Venta', label: 'Venta' }, { value: 'Arriendo', label: 'Arriendo' }];
   const tipoClienteOptions = [{ value: 'Persona', label: 'Persona' }, { value: 'Empresa', label: 'Empresa' }];
   const tipoDocumentoClienteOptions = formData.tipo_cliente === 'Persona' ? [{ value: 'Cédula de ciudadanía', label: 'Cédula de ciudadanía' }, { value: 'Cédula de extranjería', label: 'Cédula de extranjería' }, { value: 'Pasaporte', label: 'Pasaporte' }] : [{ value: 'NIT', label: 'NIT' }, { value: 'RUT', label: 'RUT' }, { value: 'Registro Mercantil', label: 'Registro Mercantil' }];
   const cantidadPersonasOptions = [{ value: '1', label: '1 persona' }, { value: '2', label: '2 personas' }, { value: '3', label: '3 personas' }, { value: '4', label: '4 personas' }, { value: '5', label: '5 personas' }, { value: '6', label: '6 personas' }];
+  
   const radioError = !!formErrors.metodoFirma;
   const radioClasses = `mr-2 h-4 w-4 bg-transparent accent-esmeralda focus:ring-soft-gold rounded-full transition-colors duration-300 ${radioError ? 'border-red-500 ring-1 ring-red-500' : 'border-off-white/50'}`;
 
@@ -293,46 +352,152 @@ function AgendaForm() {
         {consentGiven && (
           <>
             <fieldset className="border-t-2 border-soft-gold pt-6 mb-10"><legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">1. Tus Datos</legend><div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-              <FormInput onChange={handleChange} value={formData.solicitante_nombre} label="Nombre Completo" id="solicitante_nombre" name="solicitante_nombre" type="text" placeholder="Ej: Juan Pérez" required error={!!formErrors.solicitante_nombre} />
+              <FormInput onChange={handleChange} value={formData.solicitante_nombre} label="Nombre Completo o Razón Social" id="solicitante_nombre" name="solicitante_nombre" type="text" placeholder="Ej: Juan Pérez o Constructora XYZ" required error={!!formErrors.solicitante_nombre} />
+              <CustomSelect label="Tipo de Persona" name="solicitante_tipo_persona" value={formData.solicitante_tipo_persona} onChange={handleChange} options={tipoPersonaOptions} placeholder="Selecciona..." error={!!formErrors.solicitante_tipo_persona} />
               <CustomSelect label="Perfil" name="solicitante_perfil" value={formData.solicitante_perfil} onChange={handleChange} options={perfilOptions} placeholder="Selecciona tu perfil..." error={!!formErrors.solicitante_perfil} />
               <FormInput onChange={handleChange} value={formData.solicitante_email} label="Correo Electrónico" id="solicitante_email" name="solicitante_email" type="email" placeholder="tucorreo@ejemplo.com" required error={!!formErrors.solicitante_email} />
               <FormInput onChange={handleChange} value={formData.solicitante_celular.replace(/^\+?57/, '').slice(0, 10)} label="Celular" id="solicitante_celular" name="solicitante_celular" type="tel" placeholder="3001234567" required adornment="+57" maxLength="10" pattern="[0-9]*" error={!!formErrors.solicitante_celular} />
-              <CustomSelect label="Tipo de Documento" name="solicitante_tipo_documento" value={formData.solicitante_tipo_documento} onChange={handleChange} options={tipoDocumentoOptions} placeholder="Selecciona un documento..." error={!!formErrors.solicitante_tipo_documento} />
-              <FormInput onChange={handleChange} value={formData.solicitante_numero_documento} label="Número de Documento" id="solicitante_numero_documento" name="solicitante_numero_documento" type={isPassport ? "text" : "tel"} pattern={isPassport ? ".*" : "[0-9]*"} placeholder="Ej: 1234567890" required maxLength="15" error={!!formErrors.solicitante_numero_documento} />
+              <CustomSelect label="Tipo de Documento" name="solicitante_tipo_documento" value={formData.solicitante_tipo_documento} onChange={handleChange} options={tipoDocumentoOptions} placeholder="Selecciona..." error={!!formErrors.solicitante_tipo_documento} />
+              <FormInput 
+                onChange={handleChange} 
+                value={formData.solicitante_numero_documento} 
+                label={isCompanyDoc ? "Número de Identificación (NIT/RUT)" : "Número de Documento"} 
+                id="solicitante_numero_documento" 
+                name="solicitante_numero_documento" 
+                type={isPassport || isCompanyDoc ? "text" : "tel"} 
+                pattern={isPassport || isCompanyDoc ? ".*" : "[0-9]*"} 
+                placeholder={isCompanyDoc ? "Ej: 900.123.456-7" : "Ej: 1234567890"} 
+                required 
+                maxLength="20" 
+                error={!!formErrors.solicitante_numero_documento} 
+              />
+              {formData.solicitante_tipo_persona === 'Persona Jurídica' && (
+                <FormInput 
+                  onChange={handleChange} 
+                  value={formData.solicitante_representante_legal} 
+                  label="Nombre del Representante Legal" 
+                  id="solicitante_representante_legal" 
+                  name="solicitante_representante_legal" 
+                  type="text" 
+                  placeholder="Ej: Juan Pérez" 
+                  required 
+                  error={!!formErrors.solicitante_representante_legal} 
+                />
+              )}
             </div></fieldset>
             <fieldset className="border-t-2 border-soft-gold pt-6 mb-10"><legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">2. Detalles de la Solicitud</legend><div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <CustomSelect label="¿Qué servicio necesitas?" name="servicio_solicitado" value={formData.servicio_solicitado} onChange={handleChange} options={servicioOptions} placeholder="Selecciona un servicio..." error={!!formErrors.servicio_solicitado} />
               {showBusinessOption && (<CustomSelect label="Opción de Negocio" name="opcion_negocio" value={formData.opcion_negocio} onChange={handleChange} options={negocioOptions} placeholder="Selecciona..." error={!!formErrors.opcion_negocio} />)}
-              <FormInput value={formData.codigo_inmueble} onChange={handleChange} label="Código del Inmueble o Servicio" id="codigo_inmueble" name="codigo_inmueble" type="text" placeholder="Ej: 110AB" required error={!!formErrors.codigo_inmueble} />
+              {/* Banner de inmueble bloqueado (viene de Vecy Network) */}
+              {isLockedByUrl ? (
+                <div className="col-span-2 flex items-start gap-4 bg-soft-gold/10 border border-soft-gold/40 rounded-xl p-4">
+                  <span className="text-2xl">🏠</span>
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-soft-gold/60 uppercase tracking-widest mb-1">Inmueble seleccionado</p>
+                    <p className="text-off-white font-semibold text-base">{formData.nombre_inmueble}</p>
+                    <p className="text-off-white/60 text-sm">Código: <span className="font-mono text-soft-gold">{formData.codigo_inmueble}</span></p>
+                  </div>
+                  <span className="text-soft-gold text-xl mt-1" title="Datos bloqueados">🔒</span>
+                </div>
+              ) : (
+                <>
+                  <FormInput value={formData.nombre_inmueble} onChange={handleChange} label="Nombre del Inmueble o Servicio" id="nombre_inmueble" name="nombre_inmueble" type="text" placeholder="Ej: Apartamento Premium Chapinero" required error={!!formErrors.nombre_inmueble} />
+                  <FormInput value={formData.codigo_inmueble} onChange={handleChange} label="Código de Identificación" id="codigo_inmueble" name="codigo_inmueble" type="text" placeholder="Ej: ID-BOG-SB01" required error={!!formErrors.codigo_inmueble} />
+                </>
+              )}
             </div>
               {showVisitDetails && (
                 <div className="transition-all duration-500 ease-in-out mt-6 flex flex-col gap-6">
                   <CustomDateTimePicker label="Fecha y Hora de la Visita" selected={formData.fecha_cita_bogota} onChange={handleDateChange} error={!!formErrors.fecha_cita_bogota} />
                   <CustomSelect label="¿Cuántas personas ingresarán?" name="cantidad_personas" value={formData.cantidad_personas} onChange={handleChange} options={cantidadPersonasOptions} placeholder="Selecciona una cantidad..." error={!!formErrors.cantidad_personas} />
+
+                  {/* Campos dinámicos de acompañantes */}
+                  {formData.acompanantes.length > 0 && (
+                    <div className="space-y-4">
+                      <p className="text-sm font-semibold section-legend-gold">
+                        👥 Datos de acompañantes (requeridos por seguridad)
+                      </p>
+                      {formData.acompanantes.map((acomp, i) => (
+                        <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl border border-soft-gold/20 bg-black/20">
+                          <div className="col-span-2">
+                            <p className="text-xs font-bold text-soft-gold/70 uppercase tracking-widest mb-3">Acompañante {i + 1}</p>
+                          </div>
+                          <FormInput
+                            label="Nombre Completo"
+                            id={`acomp_nombre_${i}`}
+                            name={`acomp_nombre_${i}`}
+                            type="text"
+                            placeholder="Ej: María García"
+                            required
+                            value={acomp.nombre}
+                            onChange={(e) => handleAcompananteChange(i, 'nombre', e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, ''))}
+                            error={!!formErrors[`acomp_${i}_nombre`]}
+                          />
+                          <FormInput
+                            label="Número de Documento"
+                            id={`acomp_doc_${i}`}
+                            name={`acomp_doc_${i}`}
+                            type="tel"
+                            pattern="[0-9]*"
+                            placeholder="Ej: 1234567890"
+                            required
+                            maxLength="15"
+                            value={acomp.documento}
+                            onChange={(e) => handleAcompananteChange(i, 'documento', e.target.value.replace(/\D/g, ''))}
+                            error={!!formErrors[`acomp_${i}_documento`]}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}</fieldset>
-            {showAgentSections && (<>
-              <fieldset className="border-t-2 border-soft-gold pt-6 mb-10"><legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">3. Presenta a tu Cliente</legend><div className="p-4 bg-black/10 rounded-lg mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <CustomSelect label="Tu cliente es:" name="tipo_cliente" value={formData.tipo_cliente} onChange={handleChange} options={tipoClienteOptions} placeholder="Selecciona..." error={!!formErrors.tipo_cliente} />
-                <FormInput value={formData.interesado_nombre} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Nombre completo del cliente" : "Razón Social de la Empresa"} id="interesado_nombre" name="interesado_nombre" type="text" placeholder="Nombre o Razón Social" error={!!formErrors.interesado_nombre} />
-                <CustomSelect label={formData.tipo_cliente === 'Persona' ? "Tipo de documento del cliente" : "Tipo de identidad empresarial"} name="interesado_tipo_documento" value={formData.interesado_tipo_documento} onChange={handleChange} options={tipoDocumentoClienteOptions} placeholder="Selecciona..." error={!!formErrors.interesado_tipo_documento} />
-                <FormInput value={formData.interesado_documento} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Número de documento del cliente" : "Número de NIT/Registro"} id="interesado_documento" name="interesado_documento" type={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? 'tel' : 'text'} pattern={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? '[0-9]*' : '.*'} placeholder="Número" maxLength="15" error={!!formErrors.interesado_documento} />
-              </div></fieldset>
-              <fieldset className={`border-t-2 pt-6 transition-colors duration-300 ${!!formErrors.metodoFirma || !!formErrors.firma_virtual_base64 || !!formErrors.firma_digital_archivo ? 'border-red-500' : 'border-soft-gold'}`}><legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">4. Firma del Agente</legend><div className="mt-4">
-                <label className={`block text-sm font-medium transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}>Elige el método de firma:</label>
+            {showAgentSections && (
+              <fieldset className="border-t-2 border-soft-gold pt-6 mb-10">
+                <legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">3. Presenta a tu Cliente</legend>
+                <div className="p-4 bg-black/10 rounded-lg mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <CustomSelect label="Tu cliente es:" name="tipo_cliente" value={formData.tipo_cliente} onChange={handleChange} options={tipoClienteOptions} placeholder="Selecciona..." error={!!formErrors.tipo_cliente} />
+                  <FormInput value={formData.interesado_nombre} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Nombre completo del cliente" : "Razón Social de la Empresa"} id="interesado_nombre" name="interesado_nombre" type="text" placeholder="Nombre o Razón Social" error={!!formErrors.interesado_nombre} />
+                  <CustomSelect label={formData.tipo_cliente === 'Persona' ? "Tipo de documento del cliente" : "Tipo de identidad empresarial"} name="interesado_tipo_documento" value={formData.interesado_tipo_documento} onChange={handleChange} options={tipoDocumentoClienteOptions} placeholder="Selecciona..." error={!!formErrors.interesado_tipo_documento} />
+                  <FormInput value={formData.interesado_documento} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Número de documento del cliente" : "Número de NIT/Registro"} id="interesado_documento" name="interesado_documento" type={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? 'tel' : 'text'} pattern={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? '[0-9]*' : '.*'} placeholder="Número" maxLength="15" error={!!formErrors.interesado_documento} />
+                </div>
+              </fieldset>
+            )}
+
+            <fieldset className={`border-t-2 pt-6 transition-colors duration-300 ${!!formErrors.metodoFirma || !!formErrors.firma_virtual_base64 || !!formErrors.firma_digital_archivo ? 'border-red-500' : 'border-soft-gold'}`}>
+              <legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">
+                4. Firma de Autorización
+              </legend>
+              <div className="mt-4">
+                <label className={`block text-sm font-medium transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}>
+                  {formData.solicitante_tipo_persona === 'Persona Jurídica' ? 'Firma del Representante Legal:' : 'Elige tu método de firma:'}
+                </label>
                 <div className="mt-2 flex gap-6">
                   <label className={`flex items-center transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}><input type="radio" name="metodoFirma" value="virtual" checked={formData.metodoFirma === 'virtual'} onChange={handleChange} className={radioClasses} /> Firma Virtual (Dibujar)</label>
                   <label className={`flex items-center transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}><input type="radio" name="metodoFirma" value="digital" checked={formData.metodoFirma === 'digital'} onChange={handleChange} className={radioClasses} /> Firma Digital (Subir archivo)</label>
                 </div>
-                {formData.metodoFirma === 'virtual' && <div className="mt-4"><label className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_virtual_base64 ? 'text-red-400' : 'text-off-white/80'}`}>Por favor, firma en el siguiente recuadro:</label>
-                  <React.Suspense fallback={<div className="h-48 w-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">Cargando pad de firma...</div>}>
-                    <SignaturePadComponent onSignatureChange={handleSignatureChange} />
-                  </React.Suspense>
-                </div>}
-                {formData.metodoFirma === 'digital' && (<div className="mt-4"><label htmlFor="firma_digital_upload" className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_digital_archivo ? 'text-red-400' : 'text-off-white/80'}`}>Sube el archivo de tu firma (PNG, JPG):</label><input type="file" id="firma_digital_upload" name="firma_digital_archivo" onChange={handleFileChange} accept=".png,.jpg,.jpeg" className={`w-full text-sm text-off-white/80 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-soft-gold/20 file:text-soft-gold hover:file:bg-soft-gold/30 ${!!formErrors.firma_digital_archivo ? 'ring-2 ring-red-500 rounded-lg p-2' : ''}`} /></div>)}
-              </div></fieldset>
-            </>)}
-            <AuthorizationCheckbox formData={formData} handleChange={handleChange} isAgentView={showAgentSections} error={!!formErrors.autorizacion} />
+                {formData.metodoFirma === 'virtual' && (
+                  <div className="mt-4">
+                    <label className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_virtual_base64 ? 'text-red-400' : 'text-off-white/80'}`}>
+                      Por favor, firma en el siguiente recuadro:
+                    </label>
+                    <React.Suspense fallback={<div className="h-48 w-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">Cargando pad de firma...</div>}>
+                      <SignaturePadComponent onSignatureChange={handleSignatureChange} />
+                    </React.Suspense>
+                  </div>
+                )}
+                {formData.metodoFirma === 'digital' && (
+                  <div className="mt-4">
+                    <label htmlFor="firma_digital_upload" className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_digital_archivo ? 'text-red-400' : 'text-off-white/80'}`}>
+                      Sube el archivo de tu firma (PNG, JPG):
+                    </label>
+                    <input type="file" id="firma_digital_upload" name="firma_digital_archivo" onChange={handleFileChange} accept=".png,.jpg,.jpeg" className={`w-full text-sm text-off-white/80 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-soft-gold/20 file:text-soft-gold hover:file:bg-soft-gold/30 ${!!formErrors.firma_digital_archivo ? 'ring-2 ring-red-500 rounded-lg p-2' : ''}`} />
+                  </div>
+                )}
+              </div>
+            </fieldset>
+
+            <AuthorizationCheckbox formData={formData} handleChange={handleChange} isAgentView={true} error={!!formErrors.autorizacion} />
             <div className="mt-8"><button type="submit" disabled={isSubmitting} className="w-full bg-soft-gold hover:bg-gold-bright text-volcanic-black font-bold py-4 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed btn-pulse-gold">{isSubmitting ? <Spinner /> : null}{isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}</button></div>
             {error && (<div className="mt-4 text-center text-red-400 bg-red-900/50 p-3 rounded-lg">{error}</div>)}
           </>

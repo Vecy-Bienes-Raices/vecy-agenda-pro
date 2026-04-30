@@ -138,7 +138,7 @@ serve(async (req: any) => {
 // ================== 3. LÓGICA DE CORREOS ==================
 
 function getEmailContent(formData: any) {
-  const { solicitante_nombre, solicitante_perfil, solicitud_id, servicio_solicitado, opcion_negocio, codigo_inmueble, fecha_cita_texto, solicitante_email, hora_cita } = formData;
+  const { solicitante_nombre, solicitante_perfil, solicitud_id, servicio_solicitado, opcion_negocio, nombre_inmueble, codigo_inmueble, fecha_cita_texto, solicitante_email, hora_cita } = formData;
   const logoUrlParaEmail = 'cid:vecyLogo';
 
   // Fecha y hora actuales para el texto del correo
@@ -242,9 +242,10 @@ function getAdminEmailContent(formData: any) {
 async function sendWhatsAppNotification(formData: any) {
   const {
     solicitud_id, solicitante_nombre, solicitante_perfil, solicitante_numero_documento, solicitante_tipo_documento, solicitante_email, solicitante_celular,
-    servicio_solicitado, codigo_inmueble, opcion_negocio, fecha_cita_texto, hora_cita, cantidad_personas,
+    servicio_solicitado, codigo_inmueble, nombre_inmueble, opcion_negocio, fecha_cita_texto, hora_cita, cantidad_personas,
     interesado_nombre, interesado_tipo_documento, interesado_documento, tipo_cliente, id
   } = formData;
+
 
   const phone = '+573166569719';
   const apiKey = '5026635';
@@ -260,6 +261,7 @@ async function sendWhatsAppNotification(formData: any) {
   const esColega = perfil.includes('agente') || perfil.includes('inmobiliaria') || perfil.includes('colega');
   const servicio = servicio_solicitado || 'Visitar inmueble';
   const codigo = codigo_inmueble || 'N/A';
+  const inmueble = nombre_inmueble || codigo;
 
   // Usamos siempre 'solicitud_id' (consecutivo) para coherencia
   const displayId = solicitud_id;
@@ -267,12 +269,10 @@ async function sendWhatsAppNotification(formData: any) {
   let mensajeContacto = '';
 
   if (esColega) {
-    // Formato AGENTE (Ultra Corto)
     const clienteInfo = interesado_nombre ? ` Cliente: *${interesado_nombre}* 👤` : '';
-    mensajeContacto = `*Confirmación* Solicitud ${displayId} ✅ ${servicio} *${codigo}* 🏠, Fecha 📅 ${fecha_cita_texto} Hora 🕜 ${hora_cita}${clienteInfo}`;
+    mensajeContacto = `*Confirmación* Solicitud ${displayId} ✅ ${servicio} *${inmueble}* (${codigo}) 🏠, Fecha 📅 ${fecha_cita_texto} Hora 🕜 ${hora_cita}${clienteInfo}`;
   } else {
-    // Formato CLIENTE DIRECTO (Ultra Corto)
-    mensajeContacto = `*Confirmación* Solicitud ${displayId} ✅ ${servicio} *${codigo}* 🏠, Fecha 📅 ${fecha_cita_texto} Hora 🕜 ${hora_cita}`;
+    mensajeContacto = `*Confirmación* Solicitud ${displayId} ✅ ${servicio} *${inmueble}* (${codigo}) 🏠, Fecha 📅 ${fecha_cita_texto} Hora 🕜 ${hora_cita}`;
   }
 
   const waLink = `https://wa.me/${solicitanteCelularLimpio}?text=${encodeURIComponent(mensajeContacto)}`;
@@ -289,7 +289,8 @@ Contrato: ${solicitud_id}
 
 🏠 *Solicitud*
 ${servicio_solicitado || 'N/A'}
-Cod: ${codigo_inmueble || 'N/A'}
+${nombre_inmueble ? nombre_inmueble + '\n' : ''}Cod: ${codigo_inmueble || 'N/A'}
+
 Negocio: ${opcion_negocio || 'N/A'}
 📅 ${fecha_cita_texto || 'N/A'}
 🕜 ${hora_cita || 'N/A'}
@@ -529,10 +530,12 @@ async function createContractPdf(formData: any) {
   const generationDate = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Bogota' });
 
   // Agregamos clean() a todas las variables
+  const isJuridica = formData.solicitante_tipo_persona === 'Persona Jurídica';
+  
   const introSegments = [
     { text: 'Entre los suscritos a saber, por una parte, JANI ALVES SOUZA, mayor de edad, identificada con cédula de ciudadanía No. 41.057.506, actuando en representación de VECY BIENES RAÍCES, quien en adelante se denominará EL AGENTE 1; y por la otra parte, ', font },
     { text: clean(formData.solicitante_nombre), font: boldFont },
-    { text: ', mayor de edad, identificado(a) con ', font },
+    { text: isJuridica ? `, entidad con personería jurídica, representada legalmente por ${clean(formData.solicitante_representante_legal)}, identificada con ` : ', mayor de edad, identificado(a) con ', font },
     { text: clean(formData.solicitante_tipo_documento), font: boldFont },
     { text: ' No. ', font },
     { text: clean(formData.solicitante_numero_documento), font: boldFont },
@@ -645,7 +648,12 @@ async function createContractPdf(formData: any) {
   currentPage.drawLine({ start: { x: agentSignatureX, y: firmaY - 35 }, end: { x: width - margin, y: firmaY - 35 }, thickness: 0.5, color: black });
   currentPage.drawText(clean(formData.solicitante_nombre).toUpperCase(), { x: agentSignatureX, y: firmaY - 48, font: boldFont, size: 9, maxWidth: 200 });
   currentPage.drawText(`${clean(formData.solicitante_tipo_documento)} No. ${clean(formData.solicitante_numero_documento)}`, { x: agentSignatureX, y: firmaY - 58, font, size: 8 });
-  currentPage.drawText('AGENTE 2', { x: agentSignatureX, y: firmaY - 68, font, size: 8 });
+  if (isJuridica && formData.solicitante_representante_legal) {
+    currentPage.drawText(`Rep. Legal: ${clean(formData.solicitante_representante_legal)}`, { x: agentSignatureX, y: firmaY - 68, font, size: 8 });
+    currentPage.drawText('AGENTE 2', { x: agentSignatureX, y: firmaY - 78, font, size: 8 });
+  } else {
+    currentPage.drawText('AGENTE 2', { x: agentSignatureX, y: firmaY - 68, font, size: 8 });
+  }
 
   // --- PIE DE PÁGINA FINAL ---
   drawFooter(currentPage);

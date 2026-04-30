@@ -1,49 +1,95 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { FaFacebook, FaEnvelope } from 'react-icons/fa';
+import { FaFacebook, FaEnvelope, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { FcGoogle } from 'react-icons/fc';
 
-const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
+const AuthModal = ({ isOpen, onClose }) => {
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
-    const [isEmailSent, setIsEmailSent] = useState(false);
+    const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [isRegister, setIsRegister] = useState(false);
+    const [successMsg, setSuccessMsg] = useState('');
     const [error, setError] = useState('');
 
     if (!isOpen) return null;
+
+    const reset = () => {
+        setError('');
+        setSuccessMsg('');
+        setEmail('');
+        setPassword('');
+        setShowPassword(false);
+    };
 
     const handleOAuthLogin = async (provider) => {
         setLoading(true);
         setError('');
         try {
             const { error } = await supabase.auth.signInWithOAuth({
-                provider: provider,
-                options: {
-                    redirectTo: `${window.location.origin}/formulario`, // Redirige al formulario
-                }
+                provider,
+                options: { redirectTo: `${window.location.origin}/formulario` },
             });
             if (error) throw error;
-        } catch (error) {
-            setError(error.message);
+        } catch (err) {
+            setError(err.message);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleMagicLinkLogin = async (e) => {
+    const handleEmailAuth = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
+        setSuccessMsg('');
+
         try {
-            const { error } = await supabase.auth.signInWithOtp({
-                email,
-                options: {
-                    emailRedirectTo: `${window.location.origin}/formulario`,
-                }
+            if (isRegister) {
+                // REGISTRO
+                const { error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: { emailRedirectTo: `${window.location.origin}/formulario` },
+                });
+                if (error) throw error;
+                setSuccessMsg('✅ ¡Cuenta creada! Revisa tu correo para confirmar y luego inicia sesión.');
+            } else {
+                // INICIO DE SESIÓN
+                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                onClose(); // cierra el modal al entrar
+            }
+        } catch (err) {
+            // Mensajes de error amigables en español
+            const msg = err.message;
+            if (msg.includes('Invalid login credentials'))
+                setError('Correo o contraseña incorrectos. Intenta de nuevo.');
+            else if (msg.includes('Email not confirmed'))
+                setError('Debes confirmar tu correo antes de iniciar sesión. Revisa tu bandeja.');
+            else if (msg.includes('User already registered'))
+                setError('Ya existe una cuenta con este correo. Intenta iniciar sesión.');
+            else if (msg.includes('Password should be at least'))
+                setError('La contraseña debe tener al menos 6 caracteres.');
+            else
+                setError(msg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleForgotPassword = async () => {
+        if (!email) { setError('Ingresa tu correo primero para recuperar la contraseña.'); return; }
+        setLoading(true);
+        setError('');
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/formulario`,
             });
             if (error) throw error;
-            setIsEmailSent(true);
-        } catch (error) {
-            setError(error.message);
+            setSuccessMsg(`📧 Enviamos un enlace de recuperación a ${email}.`);
+        } catch (err) {
+            setError(err.message);
         } finally {
             setLoading(false);
         }
@@ -52,6 +98,7 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div className="bg-volcanic-black border border-soft-gold/30 rounded-2xl p-8 max-w-md w-full shadow-2xl relative">
+                {/* Cerrar */}
                 <button
                     onClick={onClose}
                     className="absolute top-4 right-4 text-off-white/50 hover:text-soft-gold text-2xl transition-colors"
@@ -59,88 +106,131 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
                     &times;
                 </button>
 
-                <div className="text-center mb-8">
-                    <h2 className="text-2xl font-bold text-soft-gold mb-2">Bienvenido a Vecy</h2>
-                    <p className="text-off-white/70 text-sm">Inicia sesión para autocompletar tus datos y agilizar tu solicitud.</p>
+                {/* Encabezado */}
+                <div className="text-center mb-6">
+                    <h2 className="text-2xl font-bold text-soft-gold mb-1">Bienvenido a Vecy</h2>
+                    <p className="text-off-white/60 text-sm">
+                        {isRegister ? 'Crea tu cuenta para continuar.' : 'Inicia sesión para autocompletar tus datos.'}
+                    </p>
                 </div>
 
+                {/* Error / Éxito */}
                 {error && (
-                    <div className="bg-red-900/50 text-red-200 text-sm p-3 rounded-lg mb-6 border border-red-500/30">
+                    <div className="bg-red-900/40 text-red-300 text-sm p-3 rounded-lg mb-4 border border-red-500/30">
                         {error}
                     </div>
                 )}
-
-                {isEmailSent ? (
-                    <div className="text-center bg-esmeralda/20 border border-esmeralda p-6 rounded-xl">
-                        <div className="text-4xl mb-4">📧</div>
-                        <h3 className="text-xl font-bold text-off-white mb-2">¡Revisa tu correo!</h3>
-                        <p className="text-off-white/80">Hemos enviado un enlace mágico a <strong>{email}</strong>.</p>
-                        <p className="text-sm text-off-white/60 mt-4">Haz clic en el enlace para entrar automáticamente.</p>
-                        <button
-                            onClick={() => setIsEmailSent(false)}
-                            className="mt-6 text-soft-gold hover:underline text-sm"
-                        >
-                            Volver a intentar
-                        </button>
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        <button
-                            onClick={() => handleOAuthLogin('google')}
-                            disabled={loading}
-                            className="w-full flex items-center justify-center gap-3 bg-white text-gray-800 font-semibold py-3 px-4 rounded-xl hover:bg-gray-50 transition-all duration-300 shadow-md hover:shadow-xl transform hover:-translate-y-0.5"
-                        >
-                            <FcGoogle className="text-2xl" />
-                            Continuar con Google
-                        </button>
-
-                        <button
-                            onClick={() => handleOAuthLogin('facebook')}
-                            disabled={loading}
-                            className="w-full flex items-center justify-center gap-3 bg-[#1877F2] text-white font-semibold py-3 px-4 rounded-xl hover:bg-[#166fe5] transition-all duration-300 shadow-md hover:shadow-xl transform hover:-translate-y-0.5"
-                        >
-                            <FaFacebook className="text-xl" />
-                            Continuar con Facebook
-                        </button>
-
-                        <div className="relative my-6">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-off-white/20"></div>
-                            </div>
-                            <div className="relative flex justify-center text-sm">
-                                <span className="px-2 bg-volcanic-black text-off-white/50">O usa tu correo</span>
-                            </div>
-                        </div>
-
-                        <form onSubmit={handleMagicLinkLogin} className="space-y-4">
-                            <div className="space-y-2">
-                                <label htmlFor="email" className="text-sm font-medium text-off-white/80">Correo Electrónico</label>
-                                <div className="relative">
-                                    <FaEnvelope className="absolute left-3 top-1/2 -translate-y-1/2 text-off-white/30" />
-                                    <input
-                                        type="email"
-                                        id="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="tucorreo@ejemplo.com"
-                                        required
-                                        className="w-full pl-10 pr-4 py-3 bg-black/20 border border-off-white/20 rounded-xl text-off-white placeholder-off-white/30 focus:border-soft-gold focus:ring-1 focus:ring-soft-gold outline-none transition-all"
-                                    />
-                                </div>
-                            </div>
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full bg-soft-gold/80 hover:bg-soft-gold text-volcanic-black font-bold py-3 px-4 rounded-xl transition-all shadow-lg hover:shadow-luminous-gold"
-                            >
-                                {loading ? 'Enviando...' : 'Enviar enlace de acceso al correo'}
-                            </button>
-                        </form>
-                        <p className="text-xs text-center text-off-white/40 mt-2">
-                            * Te enviaremos un link a tu correo para entrar sin contraseña.
-                        </p>
+                {successMsg && (
+                    <div className="bg-green-900/40 text-green-300 text-sm p-3 rounded-lg mb-4 border border-green-500/30">
+                        {successMsg}
                     </div>
                 )}
+
+                <div className="space-y-3">
+                    {/* Google */}
+                    <button
+                        onClick={() => handleOAuthLogin('google')}
+                        disabled={loading}
+                        className="w-full flex items-center justify-center gap-3 bg-white text-gray-800 font-semibold py-3 px-4 rounded-xl hover:bg-gray-100 transition-all duration-300 shadow-md transform hover:-translate-y-0.5 disabled:opacity-50"
+                    >
+                        <FcGoogle className="text-2xl" />
+                        Continuar con Google
+                    </button>
+
+                    {/* Facebook */}
+                    <button
+                        onClick={() => handleOAuthLogin('facebook')}
+                        disabled={loading}
+                        className="w-full flex items-center justify-center gap-3 bg-[#1877F2] text-white font-semibold py-3 px-4 rounded-xl hover:bg-[#166fe5] transition-all duration-300 shadow-md transform hover:-translate-y-0.5 disabled:opacity-50"
+                    >
+                        <FaFacebook className="text-xl" />
+                        Continuar con Facebook
+                    </button>
+
+                    {/* Divisor */}
+                    <div className="relative my-4">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-off-white/20" />
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="px-3 bg-volcanic-black text-off-white/50">
+                                {isRegister ? 'O regístrate con tu correo' : 'O inicia sesión con tu correo'}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Formulario Email + Contraseña */}
+                    <form onSubmit={handleEmailAuth} className="space-y-3">
+                        {/* Email */}
+                        <div className="relative">
+                            <FaEnvelope className="absolute left-3 top-1/2 -translate-y-1/2 text-off-white/30 text-sm" />
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="tucorreo@ejemplo.com"
+                                required
+                                className="w-full pl-9 pr-4 py-3 bg-black/30 border border-off-white/20 rounded-xl text-off-white placeholder-off-white/30 focus:border-soft-gold focus:ring-1 focus:ring-soft-gold outline-none transition-all text-sm"
+                            />
+                        </div>
+
+                        {/* Contraseña */}
+                        <div className="relative">
+                            <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-off-white/30 text-sm" />
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder={isRegister ? 'Mínimo 6 caracteres' : 'Tu contraseña'}
+                                required
+                                minLength={6}
+                                className="w-full pl-9 pr-10 py-3 bg-black/30 border border-off-white/20 rounded-xl text-off-white placeholder-off-white/30 focus:border-soft-gold focus:ring-1 focus:ring-soft-gold outline-none transition-all text-sm"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(v => !v)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-off-white/40 hover:text-soft-gold transition-colors"
+                            >
+                                {showPassword ? <FaEyeSlash /> : <FaEye />}
+                            </button>
+                        </div>
+
+                        {/* Olvidé contraseña (solo en login) */}
+                        {!isRegister && (
+                            <div className="text-right">
+                                <button
+                                    type="button"
+                                    onClick={handleForgotPassword}
+                                    disabled={loading}
+                                    className="text-xs text-soft-gold/70 hover:text-soft-gold hover:underline transition-colors"
+                                >
+                                    ¿Olvidaste tu contraseña?
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Botón principal */}
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-soft-gold hover:bg-gold-bright text-volcanic-black font-bold py-3 px-4 rounded-xl transition-all shadow-lg hover:shadow-luminous-gold disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {loading ? 'Procesando...' : isRegister ? 'Crear Cuenta' : 'Iniciar Sesión'}
+                        </button>
+                    </form>
+
+                    {/* Toggle Login / Registro */}
+                    <p className="text-center text-sm text-off-white/50 pt-1">
+                        {isRegister ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'}{' '}
+                        <button
+                            type="button"
+                            onClick={() => { setIsRegister(v => !v); reset(); }}
+                            className="text-soft-gold font-semibold hover:underline transition-colors"
+                        >
+                            {isRegister ? 'Inicia sesión' : 'Regístrate'}
+                        </button>
+                    </p>
+                </div>
             </div>
         </div>
     );
