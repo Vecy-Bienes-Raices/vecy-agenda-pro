@@ -280,7 +280,7 @@ function AgendaForm() {
   
   const perfilOptions = formData.solicitante_tipo_persona === 'Persona Natural'
     ? [{ value: 'Cliente directo', label: 'Cliente directo' }, { value: 'Agente', label: 'Agente independiente' }]
-    : [{ value: 'Agencia / Inmobiliaria', label: 'Agencia / Inmobiliaria' }, { value: 'Bróker / Empresa', label: 'Bróker / Empresa' }, { value: 'Constructora', label: 'Constructora' }];
+    : [{ value: 'Cliente directo (Empresa)', label: 'Empresa / Cliente directo' }, { value: 'Agencia / Inmobiliaria', label: 'Agencia / Inmobiliaria' }, { value: 'Bróker / Empresa', label: 'Bróker / Empresa' }, { value: 'Constructora', label: 'Constructora' }];
   
   const tipoDocumentoOptions = formData.solicitante_tipo_persona === 'Persona Natural' 
     ? [{ value: 'Cédula de ciudadanía', label: 'Cédula de ciudadanía' }, { value: 'Cédula de extranjería', label: 'Cédula de extranjería' }, { value: 'Pasaporte', label: 'Pasaporte' }] 
@@ -453,51 +453,53 @@ function AgendaForm() {
                 </div>
               )}</fieldset>
             {showAgentSections && (
-              <fieldset className="border-t-2 border-soft-gold pt-6 mb-10">
-                <legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">3. Presenta a tu Cliente</legend>
-                <div className="p-4 bg-black/10 rounded-lg mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <CustomSelect label="Tu cliente es:" name="tipo_cliente" value={formData.tipo_cliente} onChange={handleChange} options={tipoClienteOptions} placeholder="Selecciona..." error={!!formErrors.tipo_cliente} />
-                  <FormInput value={formData.interesado_nombre} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Nombre completo del cliente" : "Razón Social de la Empresa"} id="interesado_nombre" name="interesado_nombre" type="text" placeholder="Nombre o Razón Social" error={!!formErrors.interesado_nombre} />
-                  <CustomSelect label={formData.tipo_cliente === 'Persona' ? "Tipo de documento del cliente" : "Tipo de identidad empresarial"} name="interesado_tipo_documento" value={formData.interesado_tipo_documento} onChange={handleChange} options={tipoDocumentoClienteOptions} placeholder="Selecciona..." error={!!formErrors.interesado_tipo_documento} />
-                  <FormInput value={formData.interesado_documento} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Número de documento del cliente" : "Número de NIT/Registro"} id="interesado_documento" name="interesado_documento" type={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? 'tel' : 'text'} pattern={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? '[0-9]*' : '.*'} placeholder="Número" maxLength="15" error={!!formErrors.interesado_documento} />
-                </div>
-              </fieldset>
+              <>
+                <fieldset className="border-t-2 border-soft-gold pt-6 mb-10">
+                  <legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">3. Presenta a tu Cliente</legend>
+                  <div className="p-4 bg-black/10 rounded-lg mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <CustomSelect label="Tu cliente es:" name="tipo_cliente" value={formData.tipo_cliente} onChange={handleChange} options={tipoClienteOptions} placeholder="Selecciona..." error={!!formErrors.tipo_cliente} />
+                    <FormInput value={formData.interesado_nombre} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Nombre completo del cliente" : "Razón Social de la Empresa"} id="interesado_nombre" name="interesado_nombre" type="text" placeholder="Nombre o Razón Social" error={!!formErrors.interesado_nombre} />
+                    <CustomSelect label={formData.tipo_cliente === 'Persona' ? "Tipo de documento del cliente" : "Tipo de identidad empresarial"} name="interesado_tipo_documento" value={formData.interesado_tipo_documento} onChange={handleChange} options={tipoDocumentoClienteOptions} placeholder="Selecciona..." error={!!formErrors.interesado_tipo_documento} />
+                    <FormInput value={formData.interesado_documento} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Número de documento del cliente" : "Número de NIT/Registro"} id="interesado_documento" name="interesado_documento" type={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? 'tel' : 'text'} pattern={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? '[0-9]*' : '.*'} placeholder="Número" maxLength="15" error={!!formErrors.interesado_documento} />
+                  </div>
+                </fieldset>
+
+                <fieldset className={`border-t-2 pt-6 transition-colors duration-300 ${!!formErrors.metodoFirma || !!formErrors.firma_virtual_base64 || !!formErrors.firma_digital_archivo ? 'border-red-500' : 'border-soft-gold'}`}>
+                  <legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">
+                    4. Firma del Agente / Intermediario
+                  </legend>
+                  <div className="mt-4">
+                    <label className={`block text-sm font-medium transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}>
+                      {formData.solicitante_tipo_persona === 'Persona Jurídica' ? 'Firma del Representante Legal (Agente):' : 'Elige tu método de firma:'}
+                    </label>
+                    <div className="mt-2 flex gap-6">
+                      <label className={`flex items-center transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}><input type="radio" name="metodoFirma" value="virtual" checked={formData.metodoFirma === 'virtual'} onChange={handleChange} className={radioClasses} /> Firma Virtual (Dibujar)</label>
+                      <label className={`flex items-center transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}><input type="radio" name="metodoFirma" value="digital" checked={formData.metodoFirma === 'digital'} onChange={handleChange} className={radioClasses} /> Firma Digital (Subir archivo)</label>
+                    </div>
+                    {formData.metodoFirma === 'virtual' && (
+                      <div className="mt-4">
+                        <label className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_virtual_base64 ? 'text-red-400' : 'text-off-white/80'}`}>
+                          Por favor, firma en el siguiente recuadro:
+                        </label>
+                        <React.Suspense fallback={<div className="h-48 w-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">Cargando pad de firma...</div>}>
+                          <SignaturePadComponent onSignatureChange={handleSignatureChange} />
+                        </React.Suspense>
+                      </div>
+                    )}
+                    {formData.metodoFirma === 'digital' && (
+                      <div className="mt-4">
+                        <label htmlFor="firma_digital_upload" className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_digital_archivo ? 'text-red-400' : 'text-off-white/80'}`}>
+                          Sube el archivo de tu firma (PNG, JPG):
+                        </label>
+                        <input type="file" id="firma_digital_upload" name="firma_digital_archivo" onChange={handleFileChange} accept=".png,.jpg,.jpeg" className={`w-full text-sm text-off-white/80 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-soft-gold/20 file:text-soft-gold hover:file:bg-soft-gold/30 ${!!formErrors.firma_digital_archivo ? 'ring-2 ring-red-500 rounded-lg p-2' : ''}`} />
+                      </div>
+                    )}
+                  </div>
+                </fieldset>
+              </>
             )}
 
-            <fieldset className={`border-t-2 pt-6 transition-colors duration-300 ${!!formErrors.metodoFirma || !!formErrors.firma_virtual_base64 || !!formErrors.firma_digital_archivo ? 'border-red-500' : 'border-soft-gold'}`}>
-              <legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">
-                4. Firma de Autorización
-              </legend>
-              <div className="mt-4">
-                <label className={`block text-sm font-medium transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}>
-                  {formData.solicitante_tipo_persona === 'Persona Jurídica' ? 'Firma del Representante Legal:' : 'Elige tu método de firma:'}
-                </label>
-                <div className="mt-2 flex gap-6">
-                  <label className={`flex items-center transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}><input type="radio" name="metodoFirma" value="virtual" checked={formData.metodoFirma === 'virtual'} onChange={handleChange} className={radioClasses} /> Firma Virtual (Dibujar)</label>
-                  <label className={`flex items-center transition-colors duration-300 ${!!formErrors.metodoFirma ? 'text-red-400' : 'text-off-white/80'}`}><input type="radio" name="metodoFirma" value="digital" checked={formData.metodoFirma === 'digital'} onChange={handleChange} className={radioClasses} /> Firma Digital (Subir archivo)</label>
-                </div>
-                {formData.metodoFirma === 'virtual' && (
-                  <div className="mt-4">
-                    <label className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_virtual_base64 ? 'text-red-400' : 'text-off-white/80'}`}>
-                      Por favor, firma en el siguiente recuadro:
-                    </label>
-                    <React.Suspense fallback={<div className="h-48 w-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">Cargando pad de firma...</div>}>
-                      <SignaturePadComponent onSignatureChange={handleSignatureChange} />
-                    </React.Suspense>
-                  </div>
-                )}
-                {formData.metodoFirma === 'digital' && (
-                  <div className="mt-4">
-                    <label htmlFor="firma_digital_upload" className={`block text-sm font-medium mb-2 transition-colors duration-300 ${!!formErrors.firma_digital_archivo ? 'text-red-400' : 'text-off-white/80'}`}>
-                      Sube el archivo de tu firma (PNG, JPG):
-                    </label>
-                    <input type="file" id="firma_digital_upload" name="firma_digital_archivo" onChange={handleFileChange} accept=".png,.jpg,.jpeg" className={`w-full text-sm text-off-white/80 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-soft-gold/20 file:text-soft-gold hover:file:bg-soft-gold/30 ${!!formErrors.firma_digital_archivo ? 'ring-2 ring-red-500 rounded-lg p-2' : ''}`} />
-                  </div>
-                )}
-              </div>
-            </fieldset>
-
-            <AuthorizationCheckbox formData={formData} handleChange={handleChange} isAgentView={true} error={!!formErrors.autorizacion} />
+            <AuthorizationCheckbox formData={formData} handleChange={handleChange} isAgentView={showAgentSections} error={!!formErrors.autorizacion} />
             <div className="mt-8"><button type="submit" disabled={isSubmitting} className="w-full bg-soft-gold hover:bg-gold-bright text-volcanic-black font-bold py-4 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed btn-pulse-gold">{isSubmitting ? <Spinner /> : null}{isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}</button></div>
             {error && (<div className="mt-4 text-center text-red-400 bg-red-900/50 p-3 rounded-lg">{error}</div>)}
           </>

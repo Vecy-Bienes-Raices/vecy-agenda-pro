@@ -47,11 +47,10 @@ export const validateForm = (data) => {
     requiredFields.interesado_nombre = 'Nombre del cliente';
     requiredFields.interesado_tipo_documento = 'Tipo de documento del cliente';
     requiredFields.interesado_documento = 'Número de documento del cliente';
+    requiredFields.metodoFirma = 'Método de Firma';
+    if (data.metodoFirma === 'virtual') requiredFields.firma_virtual_base64 = 'Firma de Autorización';
+    else if (data.metodoFirma === 'digital') requiredFields.firma_digital_archivo = 'Archivo de Firma Digital';
   }
-  
-  requiredFields.metodoFirma = 'Método de Firma';
-  if (data.metodoFirma === 'virtual') requiredFields.firma_virtual_base64 = 'Firma de Autorización';
-  else if (data.metodoFirma === 'digital') requiredFields.firma_digital_archivo = 'Archivo de Firma Digital';
   
   requiredFields.autorizacion = 'Autorización Final';
 
