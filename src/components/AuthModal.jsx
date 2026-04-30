@@ -45,6 +45,7 @@ const AuthModal = ({ isOpen, onClose }) => {
         setSuccessMsg('');
 
         try {
+            console.log('Intentando auth con:', email, isRegister ? '(Registro)' : '(Login)');
             if (isRegister) {
                 // REGISTRO
                 const { data, error } = await supabase.auth.signUp({
@@ -54,32 +55,29 @@ const AuthModal = ({ isOpen, onClose }) => {
                 });
                 if (error) throw error;
 
-                // Si ya hay sesión (confirmación desactivada), cerramos el modal
                 if (data.session) {
+                    console.log('Registro exitoso con sesión inmediata');
                     onClose();
                 } else {
-                    setSuccessMsg('✅ ¡Cuenta creada! Ya puedes iniciar sesión con tu correo y contraseña.');
-                    setIsRegister(false); // Pasamos a la vista de login automáticamente
+                    setSuccessMsg('✅ ¡Cuenta creada! Ya puedes iniciar sesión.');
+                    setIsRegister(false);
                 }
             } else {
                 // INICIO DE SESIÓN
-                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                console.log('Resultado login:', { data, error });
                 if (error) throw error;
-                onClose(); // cierra el modal al entrar
+                
+                if (data.session) {
+                    console.log('Sesión iniciada correctamente');
+                    onClose();
+                    // Forzamos un pequeño refresh si el estado no cambia solo
+                    setTimeout(() => window.location.reload(), 500);
+                }
             }
         } catch (err) {
-            // Mensajes de error amigables en español
-            const msg = err.message;
-            if (msg.includes('Invalid login credentials'))
-                setError('Correo o contraseña incorrectos. Intenta de nuevo.');
-            else if (msg.includes('Email not confirmed'))
-                setError('Debes confirmar tu correo antes de iniciar sesión. Revisa tu bandeja.');
-            else if (msg.includes('User already registered'))
-                setError('Ya existe una cuenta con este correo. Intenta iniciar sesión.');
-            else if (msg.includes('Password should be at least'))
-                setError('La contraseña debe tener al menos 6 caracteres.');
-            else
-                setError(msg);
+            console.error('Error de Auth Detectado:', err);
+            setError(`Error: ${err.message || 'Fallo desconocido al conectar con Supabase'}`);
         } finally {
             setLoading(false);
         }
