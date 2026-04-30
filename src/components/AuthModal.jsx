@@ -68,7 +68,7 @@ const AuthModal = ({ isOpen, onClose }) => {
                     console.log('Registro exitoso con sesión inmediata');
                     onClose();
                 } else {
-                    setSuccessMsg('✅ ¡Cuenta creada! Ya puedes iniciar sesión.');
+                    setSuccessMsg('✅ ¡Cuenta creada! Revisa tu correo (incluyendo Spam) para confirmar tu cuenta y luego inicia sesión.');
                     setIsRegister(false);
                 }
             } else {
@@ -86,7 +86,13 @@ const AuthModal = ({ isOpen, onClose }) => {
             }
         } catch (err) {
             console.error('Error de Auth Detectado:', err);
-            setError(`Error: ${err.message || 'Fallo desconocido al conectar con Supabase'}`);
+            let userFriendlyMessage = err.message;
+            if (err.message.includes('Email not confirmed')) {
+                userFriendlyMessage = 'Debes confirmar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada o Spam.';
+            } else if (err.message.includes('Invalid login credentials')) {
+                userFriendlyMessage = 'Correo o contraseña incorrectos.';
+            }
+            setError(`Error: ${userFriendlyMessage}`);
         } finally {
             setLoading(false);
         }
