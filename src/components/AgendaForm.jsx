@@ -296,8 +296,9 @@ function AgendaForm() {
   const radioClasses = `mr-2 h-4 w-4 bg-transparent accent-esmeralda focus:ring-soft-gold rounded-full transition-colors duration-300 ${radioError ? 'border-red-500 ring-1 ring-red-500' : 'border-off-white/50'}`;
 
   return (
-    <form noValidate onSubmit={handleSubmit}>
-      <div className="text-center mb-8">
+    <>
+      <form noValidate onSubmit={handleSubmit}>
+        <div className="text-center mb-8">
         <img src={logoUrl} alt="Logo oficial de Vecy" className="mx-auto h-20 w-20 mb-4 logo-glow-pulse" />
         <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mt-1 block">
           <span className="title-gold-gradient">Verificación de Identidad</span>
@@ -505,8 +506,9 @@ function AgendaForm() {
           </>
         )}
       </div>
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </form>
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+    </>
   );
 }
 

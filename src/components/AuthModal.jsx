@@ -5,6 +5,7 @@ import { FcGoogle } from 'react-icons/fc';
 
 const AuthModal = ({ isOpen, onClose }) => {
     const [loading, setLoading] = useState(false);
+    const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -17,6 +18,7 @@ const AuthModal = ({ isOpen, onClose }) => {
     const reset = () => {
         setError('');
         setSuccessMsg('');
+        setFullName('');
         setEmail('');
         setPassword('');
         setShowPassword(false);
@@ -44,7 +46,7 @@ const AuthModal = ({ isOpen, onClose }) => {
         console.log('Email:', email);
         console.log('URL Supabase:', import.meta.env.VITE_SUPABASE_URL ? 'Cargada OK' : 'NO CARGADA');
         
-        if (!email || !password) {
+        if (!email || !password || (isRegister && !fullName)) {
             setError('Por favor completa todos los campos.');
             return;
         }
@@ -60,7 +62,10 @@ const AuthModal = ({ isOpen, onClose }) => {
                 const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
-                    options: { emailRedirectTo: `${window.location.origin}/formulario` },
+                    options: { 
+                        emailRedirectTo: `${window.location.origin}/formulario`,
+                        data: { full_name: fullName }
+                    },
                 });
                 if (error) throw error;
 
@@ -181,6 +186,20 @@ const AuthModal = ({ isOpen, onClose }) => {
 
                     {/* Formulario Email + Contraseña */}
                     <form onSubmit={handleEmailAuth} className="space-y-3">
+                        {/* Nombre Completo (Solo Registro) */}
+                        {isRegister && (
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={fullName}
+                                    onChange={(e) => setFullName(e.target.value)}
+                                    placeholder="Tu nombre completo"
+                                    required
+                                    className="w-full pl-4 pr-4 py-3 bg-black/30 border border-off-white/20 rounded-xl text-off-white placeholder-off-white/30 focus:border-soft-gold focus:ring-1 focus:ring-soft-gold outline-none transition-all text-sm"
+                                />
+                            </div>
+                        )}
+
                         {/* Email */}
                         <div className="relative">
                             <FaEnvelope className="absolute left-3 top-1/2 -translate-y-1/2 text-off-white/30 text-sm" />
