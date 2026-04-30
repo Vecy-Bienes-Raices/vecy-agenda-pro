@@ -39,21 +39,22 @@ const AuthModal = ({ isOpen, onClose }) => {
     };
 
     const handleEmailAuth = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
+        console.log('--- NUEVO INTENTO DE AUTH ---');
+        console.log('Email:', email);
+        console.log('URL Supabase:', import.meta.env.VITE_SUPABASE_URL ? 'Cargada OK' : 'NO CARGADA');
+        
+        if (!email || !password) {
+            setError('Por favor completa todos los campos.');
+            return;
+        }
+
         setLoading(true);
         setError('');
         setSuccessMsg('');
 
         try {
             console.log('Intentando auth con:', email, isRegister ? '(Registro)' : '(Login)');
-            if (isRegister) {
-                // REGISTRO
-                const { data, error } = await supabase.auth.signUp({
-                    email,
-                    password,
-                    options: { emailRedirectTo: `${window.location.origin}/formulario` },
-                });
-                if (error) throw error;
 
                 if (data.session) {
                     console.log('Registro exitoso con sesión inmediata');
