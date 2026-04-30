@@ -55,6 +55,14 @@ const AuthModal = ({ isOpen, onClose }) => {
 
         try {
             console.log('Intentando auth con:', email, isRegister ? '(Registro)' : '(Login)');
+            if (isRegister) {
+                // REGISTRO
+                const { data, error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: { emailRedirectTo: `${window.location.origin}/formulario` },
+                });
+                if (error) throw error;
 
                 if (data.session) {
                     console.log('Registro exitoso con sesión inmediata');
