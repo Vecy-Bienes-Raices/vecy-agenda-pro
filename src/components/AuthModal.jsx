@@ -47,13 +47,20 @@ const AuthModal = ({ isOpen, onClose }) => {
         try {
             if (isRegister) {
                 // REGISTRO
-                const { error } = await supabase.auth.signUp({
+                const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
                     options: { emailRedirectTo: `${window.location.origin}/formulario` },
                 });
                 if (error) throw error;
-                setSuccessMsg('✅ ¡Cuenta creada! Revisa tu correo para confirmar y luego inicia sesión.');
+
+                // Si ya hay sesión (confirmación desactivada), cerramos el modal
+                if (data.session) {
+                    onClose();
+                } else {
+                    setSuccessMsg('✅ ¡Cuenta creada! Ya puedes iniciar sesión con tu correo y contraseña.');
+                    setIsRegister(false); // Pasamos a la vista de login automáticamente
+                }
             } else {
                 // INICIO DE SESIÓN
                 const { error } = await supabase.auth.signInWithPassword({ email, password });
