@@ -37,3 +37,5 @@ build/
 # Archivos corruptos generados por error
 *;*.js
 import React*.js
+
+.vercel
