@@ -310,6 +310,74 @@ function AgendaForm() {
   const radioError = !!formErrors.metodoFirma;
   const radioClasses = `mr-2 h-4 w-4 bg-transparent accent-esmeralda focus:ring-soft-gold rounded-full transition-colors duration-300 ${radioError ? 'border-red-500 ring-1 ring-red-500' : 'border-off-white/50'}`;
 
+  const acompanantesBlock = (
+    <div className="transition-all duration-500 ease-in-out mt-6 flex flex-col gap-6">
+      <CustomSelect label={labelPersonas} name="cantidad_personas" value={formData.cantidad_personas} onChange={handleChange} options={cantidadPersonasOptions} placeholder="Selecciona una cantidad..." error={!!formErrors.cantidad_personas} />
+
+      {/* Campos dinámicos de acompañantes */}
+      {formData.acompanantes.length > 0 && (
+        <div className="space-y-4">
+          <p className="text-sm font-semibold section-legend-gold">
+            👥 Datos de acompañantes adicionales (requeridos por seguridad)
+          </p>
+          {formData.acompanantes.map((acomp, i) => (
+            <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl border border-soft-gold/20 bg-black/20">
+              <div className="col-span-1 md:col-span-2">
+                <p className="text-xs font-bold text-soft-gold/70 uppercase tracking-widest mb-3">Acompañante {i + 1}</p>
+              </div>
+              <FormInput
+                label="Nombre Completo"
+                id={`acomp_nombre_${i}`}
+                name={`acomp_nombre_${i}`}
+                type="text"
+                placeholder="Ej: María García"
+                required
+                value={acomp.nombre}
+                onChange={(e) => handleAcompananteChange(i, 'nombre', e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, ''))}
+                error={!!formErrors[`acomp_${i}_nombre`]}
+              />
+              <FormInput
+                label="Número de Documento"
+                id={`acomp_doc_${i}`}
+                name={`acomp_doc_${i}`}
+                type="tel"
+                pattern="[0-9]*"
+                placeholder="Ej: 1234567890"
+                required
+                maxLength="15"
+                value={acomp.documento}
+                onChange={(e) => handleAcompananteChange(i, 'documento', e.target.value.replace(/\D/g, ''))}
+                error={!!formErrors[`acomp_${i}_documento`]}
+              />
+              <CustomSelect
+                label="Parentesco / Relación"
+                name={`acomp_parentesco_${i}`}
+                value={acomp.parentesco || ''}
+                onChange={(e) => handleAcompananteChange(i, 'parentesco', e.target.value)}
+                options={parentescoOptions}
+                placeholder="Selecciona..."
+                error={!!formErrors[`acomp_${i}_parentesco`]}
+              />
+              {acomp.parentesco === 'Otro' && (
+                <FormInput
+                  label="Especifique parentesco"
+                  id={`acomp_otro_${i}`}
+                  name={`acomp_otro_${i}`}
+                  type="text"
+                  placeholder="Ej: Tío, Primo..."
+                  required
+                  value={acomp.parentescoOtro || ''}
+                  onChange={(e) => handleAcompananteChange(i, 'parentescoOtro', e.target.value)}
+                  error={!!formErrors[`acomp_${i}_parentescoOtro`]}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
       <form noValidate onSubmit={handleSubmit}>
@@ -425,69 +493,7 @@ function AgendaForm() {
               {showVisitDetails && (
                 <div className="transition-all duration-500 ease-in-out mt-6 flex flex-col gap-6">
                   <CustomDateTimePicker label="Fecha y Hora de la Visita" selected={formData.fecha_cita_bogota} onChange={handleDateChange} error={!!formErrors.fecha_cita_bogota} />
-                  <CustomSelect label={labelPersonas} name="cantidad_personas" value={formData.cantidad_personas} onChange={handleChange} options={cantidadPersonasOptions} placeholder="Selecciona una cantidad..." error={!!formErrors.cantidad_personas} />
-
-                  {/* Campos dinámicos de acompañantes */}
-                  {formData.acompanantes.length > 0 && (
-                    <div className="space-y-4">
-                      <p className="text-sm font-semibold section-legend-gold">
-                        👥 Datos de acompañantes adicionales (requeridos por seguridad)
-                      </p>
-                      {formData.acompanantes.map((acomp, i) => (
-                        <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl border border-soft-gold/20 bg-black/20">
-                          <div className="col-span-1 md:col-span-2">
-                            <p className="text-xs font-bold text-soft-gold/70 uppercase tracking-widest mb-3">Acompañante {i + 1}</p>
-                          </div>
-                          <FormInput
-                            label="Nombre Completo"
-                            id={`acomp_nombre_${i}`}
-                            name={`acomp_nombre_${i}`}
-                            type="text"
-                            placeholder="Ej: María García"
-                            required
-                            value={acomp.nombre}
-                            onChange={(e) => handleAcompananteChange(i, 'nombre', e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, ''))}
-                            error={!!formErrors[`acomp_${i}_nombre`]}
-                          />
-                          <FormInput
-                            label="Número de Documento"
-                            id={`acomp_doc_${i}`}
-                            name={`acomp_doc_${i}`}
-                            type="tel"
-                            pattern="[0-9]*"
-                            placeholder="Ej: 1234567890"
-                            required
-                            maxLength="15"
-                            value={acomp.documento}
-                            onChange={(e) => handleAcompananteChange(i, 'documento', e.target.value.replace(/\D/g, ''))}
-                            error={!!formErrors[`acomp_${i}_documento`]}
-                          />
-                          <CustomSelect
-                            label="Parentesco / Relación"
-                            name={`acomp_parentesco_${i}`}
-                            value={acomp.parentesco || ''}
-                            onChange={(e) => handleAcompananteChange(i, 'parentesco', e.target.value)}
-                            options={parentescoOptions}
-                            placeholder="Selecciona..."
-                            error={!!formErrors[`acomp_${i}_parentesco`]}
-                          />
-                          {acomp.parentesco === 'Otro' && (
-                            <FormInput
-                              label="Especifique parentesco"
-                              id={`acomp_otro_${i}`}
-                              name={`acomp_otro_${i}`}
-                              type="text"
-                              placeholder="Ej: Tío, Primo..."
-                              required
-                              value={acomp.parentescoOtro || ''}
-                              onChange={(e) => handleAcompananteChange(i, 'parentescoOtro', e.target.value)}
-                              error={!!formErrors[`acomp_${i}_parentescoOtro`]}
-                            />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {!showAgentSections && acompanantesBlock}
                 </div>
               )}</fieldset>
             {showAgentSections && (
@@ -500,6 +506,7 @@ function AgendaForm() {
                     <CustomSelect label={formData.tipo_cliente === 'Persona' ? "Tipo de documento del cliente" : "Tipo de identidad empresarial"} name="interesado_tipo_documento" value={formData.interesado_tipo_documento} onChange={handleChange} options={tipoDocumentoClienteOptions} placeholder="Selecciona..." error={!!formErrors.interesado_tipo_documento} />
                     <FormInput value={formData.interesado_documento} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Número de documento del cliente" : "Número de NIT/Registro"} id="interesado_documento" name="interesado_documento" type={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? 'tel' : 'text'} pattern={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? '[0-9]*' : '.*'} placeholder="Número" maxLength="15" error={!!formErrors.interesado_documento} />
                   </div>
+                  {showVisitDetails && acompanantesBlock}
                 </fieldset>
 
                 <fieldset className={`border-t-2 pt-6 transition-colors duration-300 ${!!formErrors.metodoFirma || !!formErrors.firma_virtual_base64 || !!formErrors.firma_digital_archivo ? 'border-red-500' : 'border-soft-gold'}`}>
