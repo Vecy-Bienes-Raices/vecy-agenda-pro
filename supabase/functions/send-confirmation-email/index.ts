@@ -155,8 +155,20 @@ function getEmailContent(formData: any) {
     <p>Confirmamos la recepción de tu solicitud para <strong>"${servicio_solicitado}"</strong> en <strong>${opcion_negocio || 'trámite'}</strong> identificado con el código <strong>${codigo_inmueble || 'N/A'}</strong>, para la fecha del <strong>${fecha_cita_texto || 'fecha por confirmar'}</strong> a las <strong>${hora_cita || 'hora por confirmar'}</strong>. 📅</p>
     
     <p>Nuestro equipo revisará la fidelidad de todos los datos y, una vez verificados, te enviaremos un correo a <strong>${solicitante_email}</strong> con la confirmación del agendamiento y la dirección completa del inmueble. ¡Debes estar pendiente! 📩👀</p>
-    
-    <div class="highlight"><p><strong>ID de Solicitud: ${solicitud_id}</strong></p></div>
+  `;
+
+  if (formData.acompanantes && formData.acompanantes.length > 0) {
+    let acompHtml = '<div class="highlight"><p><strong>👥 Acompañantes Autorizados:</strong></p><ul style="margin-top: 10px; margin-bottom: 0; color: #ccc;">';
+    formData.acompanantes.forEach((acomp: any, index: number) => {
+      let parentesco = acomp.parentesco === 'Otro' ? acomp.parentescoOtro : acomp.parentesco;
+      acompHtml += `<li>${acomp.nombre} (${parentesco}) - Doc: ${acomp.documento}</li>`;
+    });
+    acompHtml += '</ul></div>';
+    body += acompHtml;
+  }
+
+  body += `
+    <div class="highlight" style="margin-top: 25px;"><p><strong>ID de Solicitud: ${solicitud_id}</strong></p></div>
   `;
 
   if (solicitante_perfil === 'Agente') {
@@ -175,8 +187,8 @@ function getAdminEmailContent(formData: any) {
   // Construir tabla de datos
   let rows = '';
   for (const [key, value] of Object.entries(formData)) {
-    // Omitir campos muy largos o internos
-    if (key === 'firma_virtual_base64' || key === 'firma_digital_archivo' || key === 'autorizacion') continue;
+    // Omitir campos muy largos, internos o que se manejan aparte
+    if (key === 'firma_virtual_base64' || key === 'firma_digital_archivo' || key === 'autorizacion' || key === 'acompanantes') continue;
 
     let displayValue = value;
     if (value === null || value === undefined) displayValue = '<em>Vacío</em>';
@@ -187,6 +199,33 @@ function getAdminEmailContent(formData: any) {
         <td style="padding: 8px; border-bottom: 1px solid #ddd;">${displayValue}</td>
       </tr>
     `;
+  }
+
+  let acompanantesHtml = '';
+  if (formData.acompanantes && formData.acompanantes.length > 0) {
+    acompanantesHtml += `
+      <h3 style="color: #bf953f; margin-top: 30px; text-transform: uppercase;">👥 Acompañantes Registrados</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Documento</th>
+            <th>Parentesco</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    formData.acompanantes.forEach((acomp: any) => {
+      let parentesco = acomp.parentesco === 'Otro' ? acomp.parentescoOtro : acomp.parentesco;
+      acompanantesHtml += `
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #333;">${acomp.nombre}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #333;">${acomp.documento}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #333;">${parentesco}</td>
+        </tr>
+      `;
+    });
+    acompanantesHtml += `</tbody></table>`;
   }
 
   const html = `
@@ -225,6 +264,8 @@ function getAdminEmailContent(formData: any) {
             ${rows}
           </tbody>
         </table>
+
+        ${acompanantesHtml}
         
         <p style="text-align: center; margin-top: 30px; font-size: 12px; color: #888;">
           Este es un correo automático del sistema interno de Vecy Agenda.
@@ -277,6 +318,15 @@ async function sendWhatsAppNotification(formData: any) {
 
   const waLink = `https://wa.me/${solicitanteCelularLimpio}?text=${encodeURIComponent(mensajeContacto)}`;
 
+  let acompanantesText = '';
+  if (formData.acompanantes && formData.acompanantes.length > 0) {
+    acompanantesText = `\n👥 *Acompañantes Autorizados*\n`;
+    formData.acompanantes.forEach((acomp: any, index: number) => {
+      let parentesco = acomp.parentesco === 'Otro' ? acomp.parentescoOtro : acomp.parentesco;
+      acompanantesText += `${index + 1}. ${acomp.nombre} (${parentesco}) - Doc: ${acomp.documento}\n`;
+    });
+  }
+
   const text = `🔔 *Solicitud No. ${displayId}* 🔔
 
 👤 *Solicitante*
@@ -299,7 +349,7 @@ Asistiran: ${cantidad_personas || 'N/A'} personas
 👥 *Cliente*
 ${interesado_nombre || 'N/A'}
 🪪 ${interesado_documento || ''}
-
+${acompanantesText}
 👇 Contactar Cliente 👇
 ${waLink}`;
 
@@ -436,8 +486,11 @@ async function createContractPdf(formData: any) {
     let currentLineWidth = 0;
     const spaceWidth = font.widthOfTextAtSize(' ', 11);
 
-    const flushLine = (justify = false) => {
-      if (lineBuffer.length === 0) return;
+    const flushLine = (justify = false, isParagraphBreak = false) => {
+      if (lineBuffer.length === 0) {
+        if (isParagraphBreak) currentY -= 6; // Extra space for empty lines or new paragraphs
+        return;
+      }
 
       // Verificar si cabe en la página
       currentY = checkAndAddPage(currentY, lineHeight);
@@ -467,13 +520,14 @@ async function createContractPdf(formData: any) {
 
       // Reset
       currentY -= lineHeight;
+      if (isParagraphBreak) currentY -= 6; // Additional elegant spacing between paragraphs
       lineBuffer = [];
       currentLineWidth = 0;
     };
 
     for (const item of allWords) {
       if (item.isNewLine) {
-        flushLine(false); // No justificar la última línea del párrafo
+        flushLine(false, true); // No justificar la última línea del párrafo, indicar break
         continue;
       }
 
@@ -495,13 +549,13 @@ async function createContractPdf(formData: any) {
   };
 
   const drawClause = (title: string, segments: any[], currentY: number): number => {
-    currentY = checkAndAddPage(currentY, 32);
-    // Título en negrita y un poco más grande
-    currentPage.drawText(title, { x: margin, y: currentY, font: boldFont, size: 11, color: goldColor });
-    currentY -= 15;
+    currentY = checkAndAddPage(currentY, 40);
+    // Título con auto-wrap para evitar que se salga del margen
+    currentY = drawRichText([{ text: title, font: boldFont, color: goldColor, size: 11 }], { y: currentY, x: margin, width: width - margin * 2, lineHeight: 15 });
+    currentY -= 4; // Espacio elegante entre título y párrafo
     // Párrafo justificado
     currentY = drawRichText(segments, { y: currentY, x: margin, width: width - margin * 2, lineHeight: 14 });
-    return currentY - 12; // Espacio tras cláusula
+    return currentY - 14; // Espacio amplio y elegante tras la cláusula
   };
 
   // --- ENCABEZADO ---
@@ -512,7 +566,7 @@ async function createContractPdf(formData: any) {
   } catch (e: any) { console.error("Error al incrustar el logo de Vecy en el PDF.", e.message); }
 
   currentPage.drawText('CONTRATO DE PUNTAS COMPARTIDAS', { x: margin + 70, y: y, font: boldFont, size: 15, color: goldColor });
-  currentPage.drawText('Acuerdo de Colaboración Inmobiliaria | Gold Edition', { x: margin + 70, y: y - 16, font: font, size: 10, color: gray });
+  currentPage.drawText('Acuerdo de Colaboración Inmobiliaria | Vecy Gold Edition', { x: margin + 70, y: y - 16, font: font, size: 10, color: gray });
 
   if (formData.solicitud_id) {
     const idText = `ID: ${formData.solicitud_id}`;
@@ -533,20 +587,22 @@ async function createContractPdf(formData: any) {
   const isJuridica = formData.solicitante_tipo_persona === 'Persona Jurídica';
   
   const introSegments = [
-    { text: 'Entre los suscritos a saber, por una parte, JANI ALVES SOUZA, mayor de edad, identificada con cédula de ciudadanía No. 41.057.506, actuando en representación de VECY BIENES RAÍCES, quien en adelante se denominará EL AGENTE 1; y por la otra parte, ', font },
+    { text: 'Entre los suscritos a saber, por una parte, JANI ALVES SOUZA, mayor de edad, identificada con cédula de ciudadanía No. 41.057.506, actuando en nombre propio como persona natural y en representación comercial de la marca VECY BIENES RAÍCES, quien en adelante se denominará EL AGENTE 1; y por la otra parte, ', font },
     { text: clean(formData.solicitante_nombre), font: boldFont },
     { text: isJuridica ? `, entidad con personería jurídica, representada legalmente por ${clean(formData.solicitante_representante_legal)}, identificada con ` : ', mayor de edad, identificado(a) con ', font },
     { text: clean(formData.solicitante_tipo_documento), font: boldFont },
     { text: ' No. ', font },
     { text: clean(formData.solicitante_numero_documento), font: boldFont },
-    { text: ', quien en adelante se denominará EL AGENTE 2, se celebra el presente contrato de colaboración inmobiliaria, regido por las siguientes cláusulas:', font }
+    { text: ', quien en adelante se denominará EL AGENTE 2, se celebra el presente contrato de colaboración inmobiliaria, el cual se regirá por las disposiciones del Código de Comercio Colombiano (Art. 1340 y subsiguientes) y las siguientes cláusulas:', font }
   ];
   y = drawRichText(introSegments, { y, x: margin, width: width - margin * 2, lineHeight: 14 });
   y -= 15;
 
   // --- CLÁUSULAS ---
   const clausula1 = [
-    { text: 'El presente contrato tiene por objeto establecer los términos de colaboración entre EL AGENTE 1 y EL AGENTE 2 para promover, gestionar y/o contribuir en la intermediación del negocio inmobiliario relacionado con el inmueble identificado con el código ', font },
+    { text: 'El presente contrato tiene por objeto establecer los términos de colaboración entre EL AGENTE 1 y EL AGENTE 2 para promover, gestionar y/o contribuir en la intermediación del negocio inmobiliario relacionado con el inmueble: ', font },
+    { text: clean(formData.nombre_inmueble || 'N/A'), font: boldFont },
+    { text: ' identificado con el código ', font },
     { text: clean(formData.codigo_inmueble || 'N/A'), font: boldFont },
     { text: ', donde EL AGENTE 2 mediante el formulario No. ', font },
     { text: clean(formData.solicitud_id), font: boldFont },
@@ -556,33 +612,54 @@ async function createContractPdf(formData: any) {
     { text: clean(formData.opcion_negocio || 'tipo de operación'), font: boldFont },
     { text: ' para la fecha ', font },
     { text: clean(formData.fecha_cita_texto || visitDate), font: boldFont },
-    { text: ', en favor del cliente ', font },
+    { text: ' en favor del cliente ', font },
     { text: clean(formData.interesado_nombre), font: boldFont },
     { text: ', identificado(a) con ', font },
     { text: clean(formData.interesado_tipo_documento), font: boldFont },
     { text: ' No. ', font },
-    { text: clean(formData.interesado_documento), font: boldFont },
-    { text: '.', font }
+    { text: clean(formData.interesado_documento), font: boldFont }
   ];
+
+  if (formData.acompanantes && formData.acompanantes.length > 0) {
+    clausula1.push({ text: ' y las siguientes personas autorizadas y registradas como acompañantes: ', font });
+    const acompNames = formData.acompanantes.map((a: any) => `${a.nombre} (${a.documento})`).join(', ');
+    clausula1.push({ text: acompNames, font: boldFont });
+    clausula1.push({ text: '.', font });
+  } else {
+    clausula1.push({ text: '.', font });
+  }
   y = drawClause('CLÁUSULA PRIMERA: OBJETO', clausula1, y);
 
-  const clausula2 = [{ text: 'Los honorarios derivados del negocio serán distribuidos en partes iguales (50% para cada parte), salvo pacto distinto por escrito. Si EL AGENTE 2 únicamente refiere al cliente o la punta que tiene al cliente sin participar activamente en visitas, negociaciones o acompañamiento, su comisión será del 20%.', font }];
-  y = drawClause('CLÁUSULA SEGUNDA: HONORARIOS', clausula2, y);
+  const clausula2 = [{ text: 'Los honorarios derivados de la comisión final efectivamente cobrada por el perfeccionamiento del negocio serán distribuidos en partes iguales (50% para cada parte), salvo pacto distinto anexo y por escrito. Si EL AGENTE 2 actúa bajo la figura de simple referenciación (únicamente refiere al cliente) sin participar activamente en el acompañamiento presencial, las negociaciones o el cierre legal, su participación corresponderá estrictamente al 20% de la comisión.', font }];
+  y = drawClause('CLÁUSULA SEGUNDA: HONORARIOS Y PROPORCIÓN', clausula2, y);
 
-  const clausula3 = [{ text: 'Obligaciones de EL AGENTE 1:\n• Promocionar el inmueble y mostrarlo a los interesados referidos por EL AGENTE 2.\n• Proporcionar la documentación e información necesarias para el cierre del negocio.\n• Coordinar las visitas y diligencias conjuntas.\n• Velar por el cumplimiento legal y ético de la gestión inmobiliaria.\n\nObligaciones de EL AGENTE 2:\n• Presentar prospectos reales y debidamente identificados.\n• Acompañar las visitas, negociaciones y cierre cuando sea requerido.\n• Colaborar activamente con la gestión del negocio, incluyendo la entrega de documentos y seguimiento.\n• Respetar el canal de comunicación institucional, absteniéndose de realizar acuerdos o negociaciones directamente con los clientes o propietarios sin previa autorización expresa y escrita de EL AGENTE 1.', font }];
-  y = drawClause('CLÁUSULA TERCERA: OBLIGACIONES DE LAS PARTES', clausula3, y);
+  y = checkAndAddPage(y, 100);
+  const clausula3 = [{ text: 'Para todos los efectos fiscales, contables y tributarios derivados del pago de la comisión u honorarios correspondientes a EL AGENTE 1, las partes reconocen y aceptan expresamente que:\n\n1. Calidad Tributaria: EL AGENTE 1 (JANI ALVES SOUZA) actúa en calidad de Persona Natural, No Responsable del Impuesto sobre las Ventas (IVA). Por consiguiente, EL AGENTE 2 (o la agencia inmobiliaria que este represente) tiene estrictamente prohibido realizar descuentos, retenciones o exigencias de facturación electrónica que incluyan el cobro o deducción de IVA sobre la proporción de EL AGENTE 1.\n2. Documento Soporte: Si EL AGENTE 2 o su agencia están obligados a llevar contabilidad, será de su exclusiva responsabilidad y carga administrativa la emisión del "Documento Soporte en adquisiciones efectuadas a sujetos no obligados a expedir factura de venta" (Resolución DIAN 000167 de 2021) para la legalización de su egreso.\n3. Retenciones en la Fuente: Toda retención en la fuente (a título de renta o ICA) solo procederá si EL AGENTE 2 o su agencia ostentan formalmente la calidad de "Agente Retenedor" ante la DIAN, aplicando estrictamente las tarifas de ley para comisiones a personas naturales declarantes o no declarantes. Cualquier deducción deberá ser informada previamente y soportada con la entrega obligatoria del respectivo Certificado de Retención; de lo contrario, el descuento se considerará un cobro indebido y apropiación injustificada de dineros.', font }];
+  y = drawClause('CLÁUSULA TERCERA: NATURALEZA TRIBUTARIA, FACTURACIÓN Y DESCUENTOS (EXCLUSIÓN DE ABUSOS)', clausula3, y);
 
-  const clausula4 = [{ text: 'El presente contrato tendrá una duración de tres (3) meses contados a partir de la fecha de su emisión o firma digital. En caso de que el negocio inmobiliario se materialice antes del vencimiento de este término, el acuerdo continuará vigente hasta su culminación.', font }];
-  y = drawClause('CLÁUSULA CUARTA: DURACIÓN', clausula4, y);
+  y = checkAndAddPage(y, 80);
+  const clausula4 = [{ text: 'De EL AGENTE 1: Promocionar el inmueble, proveer información fidedigna para el cierre, coordinar diligencias y velar por el rigor jurídico de la gestión.\nDe EL AGENTE 2: Presentar prospectos reales, acompañar las etapas de negociación (si aplica al 50%) y, con carácter irrestricto, respetar el canal de comunicación institucional, absteniéndose de realizar negociaciones directas, paralelas o a espaldas de EL AGENTE 1 con los clientes, propietarios o apoderados del inmueble.', font }];
+  y = drawClause('CLÁUSULA CUARTA: OBLIGACIONES DE LAS PARTES', clausula4, y);
 
-  const clausula5 = [{ text: 'Las partes se obligan a mantener en estricta reserva la información confidencial a la que tengan acceso con ocasión de este contrato. Cualquier solicitud, comunicación o modificación relacionada con el inmueble y/o sus propietarios deberá gestionarse exclusivamente a través de EL AGENTE 1, quien es el interlocutor autorizado ante el cliente y titular del encargo profesional.', font }];
-  y = drawClause('CLÁUSULA QUINTA: CONFIDENCIALIDAD Y CONDUCTO REGULAR', clausula5, y);
+  y = checkAndAddPage(y, 160);
+  const clausula5 = [
+    { text: 'Las partes asumen un compromiso de estricta reserva. EL AGENTE 2 reconoce que EL AGENTE 1 es el titular exclusivo del encargo profesional sobre el inmueble. EL AGENTE 2 y/o su agencia se obligan a la NO ELUSIÓN (Non-Circumvention), lo que significa que no podrán cerrar el negocio, firmar promesas de compraventa ni contratos de arrendamiento con el cliente referido o el propietario del inmueble puenteando o excluyendo a EL AGENTE 1, ni durante la vigencia de este contrato ni dentro de los doce (12) meses siguientes a su terminación.\n\n', font },
+    { text: 'PARÁGRAFO PRIMERO: EXTENSIÓN POR VÍNCULO. ', font: boldFont },
+    { text: 'Las partes acuerdan que los efectos de este contrato, especialmente lo referente al pago de honorarios y la cláusula penal, se extienden a cualquier negocio jurídico realizado sobre el inmueble con el cliente principal o con cualquier Tercero Vinculado a este. Se consideran Terceros Vinculados: Cónyuges o compañeros permanentes; familiares dentro del cuarto grado de consanguinidad y segundo de afinidad; Personas Jurídicas donde el cliente o sus familiares sean socios, representantes o beneficiarios; y los acompañantes registrados en este contrato y en el sistema de EL AGENTE 1.\n\n', font },
+    { text: 'PARÁGRAFO SEGUNDO: CARGA DE LA PRUEBA. ', font: boldFont },
+    { text: 'EL AGENTE 2 reconoce que la información consignada en la base de datos de Vecy Agenda Pro constituye prueba fehaciente del nexo causal de la operación. Cualquier intento de perfeccionar el negocio omitiendo la participación de EL AGENTE 1 con cualquiera de estas personas se considerará Incumplimiento Grave y activará de inmediato la Cláusula Penal.', font }
+  ];
+  y = drawClause('CLÁUSULA QUINTA: CONFIDENCIALIDAD, EXTENSIÓN A TERCEROS Y NO ELUSIÓN', clausula5, y);
 
-  const clausula6 = [{ text: 'El incumplimiento de cualquiera de las obligaciones aquí establecidas dará lugar a una sanción equivalente al 100% de la comisión pactada a favor de la parte cumplida, sin perjuicio de las acciones legales que puedan derivarse por daños y perjuicios, conforme a lo dispuesto en el Código Civil y el Código de Comercio.', font }];
-  y = drawClause('CLÁUSULA SEXTA: INCUMPLIMIENTO Y PENALIDAD', clausula6, y);
+  y = checkAndAddPage(y, 80);
+  const clausula6 = [{ text: 'El incumplimiento de cualquiera de las obligaciones, especialmente la elusión (puenteo), la negociación no autorizada o los descuentos injustificados sobre los honorarios, dará lugar al pago inmediato de una sanción penal equivalente al 100% de la comisión total generada por el negocio inmobiliario, a favor de la parte cumplida. El presente documento presta mérito ejecutivo para el cobro de esta penalidad, sin requerimiento de constitución en mora, a la cual se renuncia expresamente.', font }];
+  y = drawClause('CLÁUSULA SEXTA: CLÁUSULA PENAL E INCUMPLIMIENTO', clausula6, y);
 
-  const clausula7 = [{ text: 'Este contrato tiene plena validez jurídica desde el momento de su emisión digital. Las firmas digitales, electrónicas o manuscritas escaneadas se entienden como aceptadas por las partes y son válidas conforme a la Ley 527 de 1999 y las normas que regulan el comercio electrónico en Colombia.', font }];
-  y = drawClause('CLÁUSULA SÉPTIMA: VALIDEZ Y FIRMA DIGITAL', clausula7, y);
+  const clausula7 = [{ text: 'El presente contrato tendrá una vigencia de tres (3) meses desde su emisión digital. Si el negocio se materializa antes, continuará vigente hasta el pago total de las comisiones.', font }];
+  y = drawClause('CLÁUSULA SÉPTIMA: DURACIÓN', clausula7, y);
+
+  const clausula8 = [{ text: 'Este contrato ostenta plena validez jurídica desde su generación y emisión electrónica. Al amparo de la Ley 527 de 1999 (Ley de Comercio Electrónico), las firmas digitales, biométricas, electrónicas o capturas gráficas de trazo, se reputan como válidas, vinculantes y expresan el consentimiento inequívoco de las partes.', font }];
+  y = drawClause('CLÁUSULA OCTAVA: VALIDEZ Y FIRMA DIGITAL', clausula8, y);
 
   // --- FIRMAS ---
   y = checkAndAddPage(y, 150);

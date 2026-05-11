@@ -179,7 +179,7 @@ function AgendaForm() {
       // Cuando cambia la cantidad de personas, redimensionar el arreglo de acompañantes
       if (name === 'cantidad_personas') {
         const n = parseInt(val, 10) || 0;
-        const companions = n > 1 ? Array.from({ length: n - 1 }, (_, i) => prev.acompanantes[i] || { nombre: '', documento: '' }) : [];
+        const companions = n > 0 ? Array.from({ length: n }, (_, i) => prev.acompanantes[i] || { nombre: '', documento: '', parentesco: '', parentescoOtro: '' }) : [];
         newState.acompanantes = companions;
       }
 
@@ -290,8 +290,23 @@ function AgendaForm() {
   const negocioOptions = [{ value: 'Venta', label: 'Venta' }, { value: 'Arriendo', label: 'Arriendo' }];
   const tipoClienteOptions = [{ value: 'Persona', label: 'Persona' }, { value: 'Empresa', label: 'Empresa' }];
   const tipoDocumentoClienteOptions = formData.tipo_cliente === 'Persona' ? [{ value: 'Cédula de ciudadanía', label: 'Cédula de ciudadanía' }, { value: 'Cédula de extranjería', label: 'Cédula de extranjería' }, { value: 'Pasaporte', label: 'Pasaporte' }] : [{ value: 'NIT', label: 'NIT' }, { value: 'RUT', label: 'RUT' }, { value: 'Registro Mercantil', label: 'Registro Mercantil' }];
-  const cantidadPersonasOptions = [{ value: '1', label: '1 persona' }, { value: '2', label: '2 personas' }, { value: '3', label: '3 personas' }, { value: '4', label: '4 personas' }, { value: '5', label: '5 personas' }, { value: '6', label: '6 personas' }];
   
+  const labelPersonas = showAgentSections ? "¿Cuántas personas ingresarán además de ti y tu cliente?" : "¿Cuántas personas ingresarán contigo?";
+  const cantidadPersonasOptions = showAgentSections
+    ? [{ value: '0', label: 'Solo mi cliente y yo' }, { value: '1', label: '1 persona adicional' }, { value: '2', label: '2 personas adicionales' }, { value: '3', label: '3 personas adicionales' }, { value: '4', label: '4 personas adicionales' }, { value: '5', label: '5 personas adicionales' }]
+    : [{ value: '0', label: 'Solo yo' }, { value: '1', label: '1 persona adicional' }, { value: '2', label: '2 personas adicionales' }, { value: '3', label: '3 personas adicionales' }, { value: '4', label: '4 personas adicionales' }, { value: '5', label: '5 personas adicionales' }];
+  
+  const parentescoOptions = [
+    { value: 'Padre', label: 'Padre' }, { value: 'Madre', label: 'Madre' },
+    { value: 'Novio', label: 'Novio' }, { value: 'Novia', label: 'Novia' },
+    { value: 'Esposo', label: 'Esposo' }, { value: 'Esposa', label: 'Esposa' },
+    { value: 'Hijo', label: 'Hijo' }, { value: 'Hija', label: 'Hija' },
+    { value: 'Hermano', label: 'Hermano' }, { value: 'Hermana', label: 'Hermana' },
+    { value: 'Amigo', label: 'Amigo' }, { value: 'Amiga', label: 'Amiga' },
+    { value: 'Arquitecto', label: 'Arquitecto' }, { value: 'Arquitecta', label: 'Arquitecta' },
+    { value: 'Perito avaluador', label: 'Perito avaluador' },
+    { value: 'Otro', label: 'Otro (especifique)' }
+  ];
   const radioError = !!formErrors.metodoFirma;
   const radioClasses = `mr-2 h-4 w-4 bg-transparent accent-esmeralda focus:ring-soft-gold rounded-full transition-colors duration-300 ${radioError ? 'border-red-500 ring-1 ring-red-500' : 'border-off-white/50'}`;
 
@@ -410,17 +425,17 @@ function AgendaForm() {
               {showVisitDetails && (
                 <div className="transition-all duration-500 ease-in-out mt-6 flex flex-col gap-6">
                   <CustomDateTimePicker label="Fecha y Hora de la Visita" selected={formData.fecha_cita_bogota} onChange={handleDateChange} error={!!formErrors.fecha_cita_bogota} />
-                  <CustomSelect label="¿Cuántas personas ingresarán?" name="cantidad_personas" value={formData.cantidad_personas} onChange={handleChange} options={cantidadPersonasOptions} placeholder="Selecciona una cantidad..." error={!!formErrors.cantidad_personas} />
+                  <CustomSelect label={labelPersonas} name="cantidad_personas" value={formData.cantidad_personas} onChange={handleChange} options={cantidadPersonasOptions} placeholder="Selecciona una cantidad..." error={!!formErrors.cantidad_personas} />
 
                   {/* Campos dinámicos de acompañantes */}
                   {formData.acompanantes.length > 0 && (
                     <div className="space-y-4">
                       <p className="text-sm font-semibold section-legend-gold">
-                        👥 Datos de acompañantes (requeridos por seguridad)
+                        👥 Datos de acompañantes adicionales (requeridos por seguridad)
                       </p>
                       {formData.acompanantes.map((acomp, i) => (
                         <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl border border-soft-gold/20 bg-black/20">
-                          <div className="col-span-2">
+                          <div className="col-span-1 md:col-span-2">
                             <p className="text-xs font-bold text-soft-gold/70 uppercase tracking-widest mb-3">Acompañante {i + 1}</p>
                           </div>
                           <FormInput
@@ -447,6 +462,28 @@ function AgendaForm() {
                             onChange={(e) => handleAcompananteChange(i, 'documento', e.target.value.replace(/\D/g, ''))}
                             error={!!formErrors[`acomp_${i}_documento`]}
                           />
+                          <CustomSelect
+                            label="Parentesco / Relación"
+                            name={`acomp_parentesco_${i}`}
+                            value={acomp.parentesco || ''}
+                            onChange={(e) => handleAcompananteChange(i, 'parentesco', e.target.value)}
+                            options={parentescoOptions}
+                            placeholder="Selecciona..."
+                            error={!!formErrors[`acomp_${i}_parentesco`]}
+                          />
+                          {acomp.parentesco === 'Otro' && (
+                            <FormInput
+                              label="Especifique parentesco"
+                              id={`acomp_otro_${i}`}
+                              name={`acomp_otro_${i}`}
+                              type="text"
+                              placeholder="Ej: Tío, Primo..."
+                              required
+                              value={acomp.parentescoOtro || ''}
+                              onChange={(e) => handleAcompananteChange(i, 'parentescoOtro', e.target.value)}
+                              error={!!formErrors[`acomp_${i}_parentescoOtro`]}
+                            />
+                          )}
                         </div>
                       ))}
                     </div>

@@ -95,6 +95,12 @@ export const validateForm = (data) => {
       if (!acomp.documento || acomp.documento.trim() === '') {
         errors[`acomp_${i}_documento`] = `El documento del acompañante ${i + 1} es obligatorio.`;
       }
+      if (!acomp.parentesco || acomp.parentesco.trim() === '') {
+        errors[`acomp_${i}_parentesco`] = `El parentesco del acompañante ${i + 1} es obligatorio.`;
+      }
+      if (acomp.parentesco === 'Otro' && (!acomp.parentescoOtro || acomp.parentescoOtro.trim() === '')) {
+        errors[`acomp_${i}_parentescoOtro`] = `Por favor especifique el parentesco del acompañante ${i + 1}.`;
+      }
     });
   }
 
