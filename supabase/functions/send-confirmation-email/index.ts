@@ -353,18 +353,29 @@ ${acompanantesText}
 👇 Contactar Cliente 👇
 ${waLink}`;
 
-  // CallMeBot espera el texto URL encoded
-  const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(text)}&apikey=${apiKey}`;
+  // Retransmitir a través de la API oficial de WhatsApp Cloud en vecy-network
+  const url = "https://vecy-network.vercel.app/api/send-whatsapp-notification";
+  const token = "vecy_network_secret_token";
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text,
+        token,
+      }),
+    });
     if (!response.ok) {
-      console.error(`Error al enviar WhatsApp: ${response.statusText}`);
+      const errText = await response.text().catch(() => "");
+      console.error(`Error al enviar WhatsApp oficial a través de Vecy Network: ${response.status} - ${errText}`);
     } else {
-      console.log(`WhatsApp enviado a ${phone}`);
+      console.log(`WhatsApp enviado exitosamente a través de Vecy Network`);
     }
   } catch (error) {
-    console.error("Error en fetch WhatsApp:", error);
+    console.error("Error en fetch retransmisión WhatsApp:", error);
   }
 }
 
