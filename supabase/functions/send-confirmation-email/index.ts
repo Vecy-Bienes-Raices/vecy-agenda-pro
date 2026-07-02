@@ -288,7 +288,7 @@ async function sendWhatsAppNotification(formData: any) {
   } = formData;
 
 
-  const phone = '+573166569719';
+  const phone = Deno.env.get("ADMIN_PHONE") || '+573166569719';
   const apiKey = '5026635';
 
   // Limpiar numero celular del solicitante para el link (quitar espacios o chars raros)
@@ -366,6 +366,7 @@ ${waLink}`;
       body: JSON.stringify({
         text,
         token,
+        phone,
       }),
     });
     if (!response.ok) {
