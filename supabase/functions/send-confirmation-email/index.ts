@@ -96,27 +96,42 @@ serve(async (req: any) => {
     }
 
     // === PASO 5: Enviar correo al cliente ===
-    const { subject, html } = getEmailContent(fullFormData);
-    await sendEmail(
-      solicitante_email,
-      null,
-      subject,
-      html,
-      pdfAttachment ? [pdfAttachment] : []
-    );
+    try {
+      const { subject, html } = getEmailContent(fullFormData);
+      await sendEmail(
+        solicitante_email,
+        null,
+        subject,
+        html,
+        pdfAttachment ? [pdfAttachment] : []
+      );
+      console.log(`[${newSolicitudId}] Correo enviado al cliente.`);
+    } catch (err: any) {
+      console.warn(`[${newSolicitudId}] Advertencia: No se pudo enviar el correo al cliente:`, err.message);
+    }
 
     // === PASO 6: Correo interno para VECY ===
-    const adminContent = getAdminEmailContent(fullFormData);
-    await sendEmail(
-      VECY_INTERNAL_EMAIL,
-      null,
-      `🔔 Nueva Solicitud #${newSolicitudId} - ${solicitante_perfil}`,
-      adminContent.html,
-      pdfAttachment ? [pdfAttachment] : []
-    );
+    try {
+      const adminContent = getAdminEmailContent(fullFormData);
+      const adminTargetEmail = VECY_INTERNAL_EMAIL || GMAIL_USER || 'vecybienesraices@gmail.com';
+      await sendEmail(
+        adminTargetEmail,
+        null,
+        `🔔 Nueva Solicitud #${newSolicitudId} - ${solicitante_perfil}`,
+        adminContent.html,
+        pdfAttachment ? [pdfAttachment] : []
+      );
+      console.log(`[${newSolicitudId}] Correo interno enviado a VECY.`);
+    } catch (err: any) {
+      console.warn(`[${newSolicitudId}] Advertencia: No se pudo enviar el correo interno a VECY:`, err.message);
+    }
 
     // === PASO 7: Notificación WhatsApp ===
-    await sendWhatsAppNotification(fullFormData);
+    try {
+      await sendWhatsAppNotification(fullFormData);
+    } catch (err: any) {
+      console.error(`[${newSolicitudId}] Error crítico enviando WhatsApp:`, err.message);
+    }
 
     console.log(`[${newSolicitudId}] Proceso completo. Correo enviado a ${solicitante_email}.`);
 
@@ -382,7 +397,8 @@ ${waLink}`;
 
 async function sendEmail(to: any, bcc: any, subject: any, html: any, attachments: any[] = []) {
   if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
-    throw new Error("Faltan las credenciales de Gmail (GMAIL_USER, GMAIL_APP_PASSWORD)");
+    console.warn("⚠️ Omitiendo envío de correo: Faltan las credenciales de Gmail (GMAIL_USER, GMAIL_APP_PASSWORD) en los secretos de Supabase.");
+    return;
   }
 
   console.log("Intentando conectar a SMTP Gmail (puerto 587)...");
