@@ -47,7 +47,7 @@ serve(async (req: any) => {
 
     if (idError) {
       console.error('Error generando ID:', idError.message);
-      throw new Error('No se pudo generar el ID de la solicitud.');
+      throw new Error(`Error de base de datos al generar ID: ${idError.message}`);
     }
 
     // === PASO 3: Insertar el registro en la tabla solicitudes ===
@@ -62,7 +62,7 @@ serve(async (req: any) => {
 
     if (insertError) {
       console.error('Error insertando solicitud:', insertError.message);
-      throw new Error('No se pudo guardar la solicitud en la base de datos.');
+      throw new Error(`Error de base de datos al guardar la solicitud: ${insertError.message}`);
     }
 
     const dbId = insertedData && insertedData[0] ? insertedData[0].id : null;
