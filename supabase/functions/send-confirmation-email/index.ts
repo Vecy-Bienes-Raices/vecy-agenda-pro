@@ -70,11 +70,15 @@ serve(async (req: any) => {
 
     console.log(`[${newSolicitudId}] Solicitud insertada con PK: ${dbId}`);
 
+
+
     // === PASO 4: Generar PDF si es Agente ===
     let pdfAttachment = null;
+    const perfilLower = (solicitante_perfil || '').toLowerCase();
+    const esAgente = perfilLower.includes('agente') || perfilLower.includes('inmobiliaria') || perfilLower.includes('bróker') || perfilLower.includes('broker');
 
-    if (solicitante_perfil === 'Agente') {
-      console.log(`[${newSolicitudId}] Perfil Agente detectado. Iniciando generación de PDF.`);
+    if (esAgente) {
+      console.log(`[${newSolicitudId}] Perfil Agente detectado (${solicitante_perfil}). Iniciando generación de PDF.`);
       const pdfBytes = await createContractPdf(fullFormData);
 
       const pdfFileName = `Contrato_Puntas_${newSolicitudId}_${(solicitante_nombre || '').replace(/\s/g, '_')}.pdf`;
@@ -193,7 +197,9 @@ function getEmailContent(formData: any) {
     <div class="highlight" style="margin-top: 25px;"><p><strong>ID de Solicitud: ${solicitud_id}</strong></p></div>
   `;
 
-  if (solicitante_perfil === 'Agente') {
+  const perfilLower = (solicitante_perfil || '').toLowerCase();
+  const esAgente = perfilLower.includes('agente') || perfilLower.includes('inmobiliaria') || perfilLower.includes('bróker') || perfilLower.includes('broker');
+  if (esAgente) {
     body += `
       <p style="margin-top: 20px;">Como agente, hemos adjuntado a este correo el contrato de colaboración <strong>No. ${solicitud_id}</strong> firmado virtualmente hoy <strong>${fechaActual}</strong> a las <strong>${horaActual}</strong> a través de nuestro formulario. ✍️📄</p>
       <p>Estamos seguros de que todo saldrá bien y será un cierre perfecto. ¡Gracias por tu confianza! 🤝🚀</p>
@@ -375,7 +381,48 @@ ${acompanantesText}
 👇 Contactar Cliente 👇
 ${waLink}`;
 
-  // Retransmitir a través de la API oficial de WhatsApp Cloud en vecy-network
+  // Intentar envío directo a Meta API si las credenciales están disponibles en los secretos
+  const whatsappApiToken = Deno.env.get("WHATSAPP_API_TOKEN");
+  const whatsappPhoneId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
+
+  if (whatsappApiToken && whatsappPhoneId) {
+    console.log(`[${displayId}] Enviando WhatsApp directo a Meta API...`);
+    const cleanPhone = phone.replace(/\D/g, "");
+    
+    const payload = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: cleanPhone,
+      type: "text",
+      text: {
+        preview_url: false,
+        body: text
+      }
+    };
+
+    try {
+      const response = await fetch(`https://graph.facebook.com/v18.0/${whatsappPhoneId}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${whatsappApiToken}`
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "");
+        console.error(`Error de Meta al enviar WhatsApp directo: ${response.status} - ${errText}`);
+      } else {
+        console.log(`WhatsApp directo enviado de forma exitosa a Meta.`);
+        return; // Éxito en el envío directo, omitir retransmisión
+      }
+    } catch (error) {
+      console.error("Error enviando WhatsApp directo a Meta:", error);
+    }
+  }
+
+  // Fallback: Retransmitir a través de la API oficial de WhatsApp Cloud en vecy-network
+  console.log(`[${displayId}] Usando fallback de retransmisión por Vecy Network...`);
   const url = "https://vecy-network.vercel.app/api/send-whatsapp-notification";
   const token = "vecy_network_secret_token";
 
