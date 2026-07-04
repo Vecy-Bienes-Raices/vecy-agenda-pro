@@ -142,9 +142,16 @@ serve(async (req: any) => {
 
   } catch (error: any) {
     console.error('Error general en la Edge Function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    // Devolvemos el error detallado para diagnosticar desde el cliente
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : '';
+    return new Response(JSON.stringify({ 
+      error: `Error interno de la Edge Function: ${errorMessage}`,
+      message: `Error interno: ${errorMessage}`,
+      stack: errorStack 
+    }), {
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      status: 500,
+      status: 400,
     });
   }
 });
