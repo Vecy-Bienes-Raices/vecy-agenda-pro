@@ -172,7 +172,7 @@ function getEmailContent(formData: any) {
   const fechaActual = new Intl.DateTimeFormat('es-CO', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Bogota' }).format(now);
   const horaActual = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' }).format(now);
 
-  const baseHtml = (title: any, bodyContent: any) => `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style> @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap'); body { font-family: 'Poppins', Arial, sans-serif; margin: 0; padding: 0; background-color: #0a0a0a; } .container { max-width: 600px; margin: 20px auto; background-color: #121212; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #bf953f33; } .header { background-color: #000000; padding: 30px; text-align: center; border-bottom: 2px solid #bf953f; } .header img { max-width: 120px; filter: drop-shadow(0 0 8px rgba(191, 149, 63, 0.4)); } .content { padding: 35px 40px; color: #f0f0f0; } .content h2 { color: #bf953f; font-size: 22px; margin-top: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; } .content p { font-size: 16px; line-height: 1.7; margin-bottom: 20px; } .highlight { background-color: #1a1a1a; padding: 15px 20px; border-left: 4px solid #bf953f; margin-top: 25px; border-radius: 4px; } .highlight p { font-size: 15px; margin: 0; color: #bf953f; font-weight: 600; } .footer { background-color: #000000; padding: 20px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #333; } .footer a { color: #bf953f; text-decoration: none; font-weight: 600; } </style></head><body><div class="container"><div class="header"><img src="${logoUrlParaEmail}" alt="Vecy Bienes Raíces Logo"></div><div class="content"><h2>${title}</h2>${bodyContent}</div><div class="footer"><p>Vecy Bienes Raíces S.A.S. © ${new Date().getFullYear()} | Gold Edition</p><p><a href="https://vecy.com.co" target="_blank">vecy.com.co</a></p></div></div></body></html>`;
+  const baseHtml = (title: any, bodyContent: any) => `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style> @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap'); body { font-family: 'Poppins', Arial, sans-serif; margin: 0; padding: 0; background-color: #0a0a0a; } .container { max-width: 600px; margin: 20px auto; background-color: #121212; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #bf953f33; } .header { background-color: #000000; padding: 30px; text-align: center; border-bottom: 2px solid #bf953f; } .header img { max-width: 120px; filter: drop-shadow(0 0 8px rgba(191, 149, 63, 0.4)); } .content { padding: 35px 40px; color: #f0f0f0; } .content h2 { color: #bf953f; font-size: 22px; margin-top: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; } .content p { font-size: 16px; line-height: 1.7; margin-bottom: 20px; } .highlight { background-color: #1a1a1a; padding: 15px 20px; border-left: 4px solid #bf953f; margin-top: 25px; border-radius: 4px; } .highlight p { font-size: 15px; margin: 0; color: #bf953f; font-weight: 600; } .footer { background-color: #000000; padding: 20px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #333; } .footer a { color: #bf953f; text-decoration: none; font-weight: 600; } </style></head><body><div class="container"><div class="header"><img src="${logoUrlParaEmail}" alt="Vecy Bienes Raíces Logo"></div><div class="content"><h2>${title}</h2>${bodyContent}</div><div class="footer"><p>Vecy Bienes Raíces S.A.S. © ${new Date().getFullYear()} | Gold Edition</p><p><a href="https://vecy-network.vercel.app/" target="_blank">vecy-network.vercel.app</a></p></div></div></body></html>`;
 
   const subject = `✅ Solicitud #${solicitud_id} Recibida | Vecy Agenda`;
   const title = `¡Hola, ${solicitante_nombre}! Hemos recibido tu solicitud 🏠✨`;
@@ -381,71 +381,20 @@ ${acompanantesText}
 👇 Contactar Cliente 👇
 ${waLink}`;
 
-  // Intentar envío directo a Meta API si las credenciales están disponibles en los secretos
-  const whatsappApiToken = Deno.env.get("WHATSAPP_API_TOKEN");
-  const whatsappPhoneId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
-
-  if (whatsappApiToken && whatsappPhoneId) {
-    console.log(`[${displayId}] Enviando WhatsApp directo a Meta API...`);
-    const cleanPhone = phone.replace(/\D/g, "");
-    
-    const payload = {
-      messaging_product: "whatsapp",
-      recipient_type: "individual",
-      to: cleanPhone,
-      type: "text",
-      text: {
-        preview_url: false,
-        body: text
-      }
-    };
-
-    try {
-      const response = await fetch(`https://graph.facebook.com/v18.0/${whatsappPhoneId}/messages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${whatsappApiToken}`
-        },
-        body: JSON.stringify(payload)
-      });
-      if (!response.ok) {
-        const errText = await response.text().catch(() => "");
-        console.error(`Error de Meta al enviar WhatsApp directo: ${response.status} - ${errText}`);
-      } else {
-        console.log(`WhatsApp directo enviado de forma exitosa a Meta.`);
-        return; // Éxito en el envío directo, omitir retransmisión
-      }
-    } catch (error) {
-      console.error("Error enviando WhatsApp directo a Meta:", error);
-    }
-  }
-
-  // Fallback: Retransmitir a través de la API oficial de WhatsApp Cloud en vecy-network
-  console.log(`[${displayId}] Usando fallback de retransmisión por Vecy Network...`);
-  const url = "https://vecy-network.vercel.app/api/send-whatsapp-notification";
-  const token = "vecy_network_secret_token";
+  console.log(`[${displayId}] Enviando notificación de WhatsApp mediante CallMeBot a ${phone}...`);
+  const cleanPhone = phone.replace(/\D/g, "");
+  const callMeBotUrl = `https://api.callmebot.com/whatsapp.php?phone=${cleanPhone}&text=${encodeURIComponent(text)}&apikey=${apiKey}`;
 
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        text,
-        token,
-        phone,
-      }),
-    });
+    const response = await fetch(callMeBotUrl);
     if (!response.ok) {
       const errText = await response.text().catch(() => "");
-      console.error(`Error al enviar WhatsApp oficial a través de Vecy Network: ${response.status} - ${errText}`);
+      console.error(`Error de CallMeBot al enviar WhatsApp: ${response.status} - ${errText}`);
     } else {
-      console.log(`WhatsApp enviado exitosamente a través de Vecy Network`);
+      console.log(`WhatsApp enviado exitosamente a través de CallMeBot.`);
     }
   } catch (error) {
-    console.error("Error en fetch retransmisión WhatsApp:", error);
+    console.error("Error en petición a CallMeBot:", error);
   }
 }
 
@@ -517,7 +466,7 @@ async function createContractPdf(formData: any) {
   let y = height - margin;
 
   const drawFooter = (pageToDrawOn: any) => {
-    const footerText = 'Vecy Bienes Raíces S.A.S. | www.vecy.com.co';
+    const footerText = 'Vecy Bienes Raíces S.A.S. | https://vecy-network.vercel.app/';
     const footerTextWidth = font.widthOfTextAtSize(footerText, 8);
     pageToDrawOn.drawText(footerText, { x: (width - footerTextWidth) / 2, y: margin / 2, font, size: 8, color: gray });
   };
@@ -694,6 +643,8 @@ async function createContractPdf(formData: any) {
     { text: clean(formData.opcion_negocio || 'tipo de operación'), font: boldFont },
     { text: ' para la fecha ', font },
     { text: clean(formData.fecha_cita_texto || visitDate), font: boldFont },
+    { text: ' a las ', font },
+    { text: clean(formData.hora_cita || 'hora por confirmar'), font: boldFont },
     { text: ' en favor del cliente ', font },
     { text: clean(formData.interesado_nombre), font: boldFont },
     { text: ', identificado(a) con ', font },
@@ -712,7 +663,10 @@ async function createContractPdf(formData: any) {
   }
   y = drawClause('CLÁUSULA PRIMERA: OBJETO', clausula1, y);
 
-  const clausula2 = [{ text: 'Los honorarios derivados de la comisión final efectivamente cobrada por el perfeccionamiento del negocio serán distribuidos en partes iguales (50% para cada parte), salvo pacto distinto anexo y por escrito. Si EL AGENTE 2 actúa bajo la figura de simple referenciación (únicamente refiere al cliente) sin participar activamente en el acompañamiento presencial, las negociaciones o el cierre legal, su participación corresponderá estrictamente al 20% de la comisión.', font }];
+  const tipoNegocio = formData.opcion_negocio || 'Venta';
+  const honorariosCorresponde = tipoNegocio.toLowerCase().includes('arriendo') ? 'un canon de arrendamiento' : 'un 3% sobre el valor final de venta';
+  const clausula2Text = `Los honorarios derivados de la comisión final efectivamente cobrada por el perfeccionamiento del negocio de ${tipoNegocio} (en este caso es ${tipoNegocio}) que corresponde a ${honorariosCorresponde} serán distribuidos en partes iguales (50% para cada parte), salvo pacto distinto anexo y por escrito. En caso de que EL AGENTE 2 actúe bajo la figura de simple referenciador (únicamente refiere al cliente o al colega) sin participar activamente en el acompañamiento presencial, las negociaciones o el cierre legal, su participación corresponderá estrictamente al 10% de la comisión.`;
+  const clausula2 = [{ text: clausula2Text, font }];
   y = drawClause('CLÁUSULA SEGUNDA: HONORARIOS Y PROPORCIÓN', clausula2, y);
 
   y = checkAndAddPage(y, 100);
