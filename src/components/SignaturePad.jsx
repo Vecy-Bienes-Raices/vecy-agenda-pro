@@ -15,9 +15,9 @@ function SignaturePadComponent({ onSignatureChange }) {
         canvas.height = canvas.offsetHeight * ratio;
         canvas.getContext("2d").scale(ratio, ratio);
 
-        // Inicializamos SignaturePad con el color de tinta dorado
+        // Inicializamos SignaturePad con el color de tinta negro
         signaturePadRef.current = new SignaturePad(canvas, {
-          penColor: '#bf953f' // Oro Vecy
+          penColor: '#000000' // Negro
         });
 
         signaturePadRef.current.addEventListener("endStroke", () => {

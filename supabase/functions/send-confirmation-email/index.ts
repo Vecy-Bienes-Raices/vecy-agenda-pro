@@ -381,20 +381,31 @@ ${acompanantesText}
 👇 Contactar Cliente 👇
 ${waLink}`;
 
-  console.log(`[${displayId}] Enviando notificación de WhatsApp mediante CallMeBot a ${phone}...`);
+  console.log(`[${displayId}] Enviando notificación de WhatsApp nativa al backend...`);
   const cleanPhone = phone.replace(/\D/g, "");
-  const callMeBotUrl = `https://api.callmebot.com/whatsapp.php?phone=${cleanPhone}&text=${encodeURIComponent(text)}&apikey=${apiKey}`;
+  const backendUrl = formData.backend_url || 'https://vecy-network.vercel.app';
+  const notificationUrl = `${backendUrl.trim()}/api/send-whatsapp-notification`;
 
   try {
-    const response = await fetch(callMeBotUrl);
+    const response = await fetch(notificationUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        text,
+        phone: cleanPhone,
+        token: 'vecy_network_secret_token'
+      })
+    });
     if (!response.ok) {
       const errText = await response.text().catch(() => "");
-      console.error(`Error de CallMeBot al enviar WhatsApp: ${response.status} - ${errText}`);
+      console.error(`Error al enviar notificación a través del backend: ${response.status} - ${errText}`);
     } else {
-      console.log(`WhatsApp enviado exitosamente a través de CallMeBot.`);
+      console.log(`Notificación de WhatsApp enviada exitosamente al backend.`);
     }
   } catch (error) {
-    console.error("Error en petición a CallMeBot:", error);
+    console.error("Error al conectar con la API de notificaciones del backend:", error);
   }
 }
 
@@ -664,8 +675,10 @@ async function createContractPdf(formData: any) {
   y = drawClause('CLÁUSULA PRIMERA: OBJETO', clausula1, y);
 
   const tipoNegocio = formData.opcion_negocio || 'Venta';
-  const honorariosCorresponde = tipoNegocio.toLowerCase().includes('arriendo') ? 'un canon de arrendamiento' : 'un 3% sobre el valor final de venta';
-  const clausula2Text = `Los honorarios derivados de la comisión final efectivamente cobrada por el perfeccionamiento del negocio de ${tipoNegocio} (en este caso es ${tipoNegocio}) que corresponde a ${honorariosCorresponde} serán distribuidos en partes iguales (50% para cada parte), salvo pacto distinto anexo y por escrito. En caso de que EL AGENTE 2 actúe bajo la figura de simple referenciador (únicamente refiere al cliente o al colega) sin participar activamente en el acompañamiento presencial, las negociaciones o el cierre legal, su participación corresponderá estrictamente al 10% de la comisión.`;
+  const honorariosCorresponde = tipoNegocio.toLowerCase().includes('arriendo')
+    ? 'un canon de arrendamiento (si fuera venta es el 3% sobre el valor total de venta)'
+    : 'el 3% sobre el valor total de la venta (si fuera arriendo es un canon de arrendamiento)';
+  const clausula2Text = `Los honorarios derivados de la comisión final efectivamente cobrada por el perfeccionamiento del negocio de Venta (en este caso es ${tipoNegocio}) que corresponde a ${honorariosCorresponde} serán distribuidos en partes iguales (50% para cada parte), salvo pacto distinto anexo y por escrito. En caso de que EL AGENTE 2 actúe bajo la figura de simple referenciador (únicamente refiere al cliente o al colega) sin participar activamente en el acompañamiento presencial, las negociaciones o el cierre legal, su participación corresponderá estrictamente al 10% de la comisión.`;
   const clausula2 = [{ text: clausula2Text, font }];
   y = drawClause('CLÁUSULA SEGUNDA: HONORARIOS Y PROPORCIÓN', clausula2, y);
 
