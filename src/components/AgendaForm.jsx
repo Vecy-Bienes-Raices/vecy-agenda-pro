@@ -49,6 +49,7 @@ function AgendaForm() {
   const [consentGiven, setConsentGiven] = useState(false);
   const [session, setSession] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const securityHint = "Validación de seguridad: Este número se coteja mediante herramientas de alta tecnología para su comprobación y verificación de datos veraces.";
 
   const normalizeCelular = (raw) => {
     if (!raw) return '+57';
@@ -181,8 +182,24 @@ function AgendaForm() {
         const digits = val.replace(/\D/g, '').slice(0, 10);
         newState[name] = `+57${digits}`;
       }
-      else if (name === 'solicitante_numero_documento' && prev.solicitante_tipo_documento !== 'Pasaporte' && prev.solicitante_tipo_persona !== 'Persona Jurídica') newState[name] = val.replace(/\D/g, '');
-      else if (name === 'interesado_documento' && ((prev.tipo_cliente === 'Persona' && prev.interesado_tipo_documento !== 'Pasaporte') || prev.tipo_cliente === 'Empresa')) newState[name] = val.replace(/\D/g, '');
+      else if (name === 'solicitante_numero_documento') {
+        if (prev.solicitante_tipo_documento === 'Pasaporte') {
+          newState[name] = val.replace(/[^a-zA-Z0-9]/g, '');
+        } else if (prev.solicitante_tipo_persona === 'Persona Jurídica' || prev.solicitante_tipo_documento === 'NIT' || prev.solicitante_tipo_documento === 'RUT') {
+          newState[name] = val.replace(/[^0-9.-]/g, '');
+        } else {
+          newState[name] = val.replace(/\D/g, '');
+        }
+      }
+      else if (name === 'interesado_documento') {
+        if (prev.interesado_tipo_documento === 'Pasaporte') {
+          newState[name] = val.replace(/[^a-zA-Z0-9]/g, '');
+        } else if (prev.tipo_cliente === 'Empresa' || prev.interesado_tipo_documento === 'NIT' || prev.interesado_tipo_documento === 'RUT') {
+          newState[name] = val.replace(/[^0-9.-]/g, '');
+        } else {
+          newState[name] = val.replace(/\D/g, '');
+        }
+      }
 
       // Lógica de limpieza de campos dependientes
       if (name === 'solicitante_tipo_persona') { newState.solicitante_tipo_documento = ''; newState.solicitante_perfil = ''; newState.solicitante_numero_documento = ''; newState.solicitante_representante_legal = ''; }
@@ -398,6 +415,7 @@ function AgendaForm() {
                 value={acomp.documento}
                 onChange={(e) => handleAcompananteChange(i, 'documento', e.target.value.replace(/\D/g, ''))}
                 error={!!formErrors[`acomp_${i}_documento`]}
+                hint={securityHint}
               />
               <CustomSelect
                 label="Parentesco / Relación"
@@ -504,6 +522,7 @@ function AgendaForm() {
                 required 
                 maxLength="20" 
                 error={!!formErrors.solicitante_numero_documento} 
+                hint={securityHint}
               />
               {formData.solicitante_tipo_persona === 'Persona Jurídica' && (
                 <FormInput 
@@ -554,7 +573,19 @@ function AgendaForm() {
                     <CustomSelect label="Tu cliente es:" name="tipo_cliente" value={formData.tipo_cliente} onChange={handleChange} options={tipoClienteOptions} placeholder="Selecciona..." error={!!formErrors.tipo_cliente} />
                     <FormInput value={formData.interesado_nombre} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Nombre completo del cliente" : "Razón Social de la Empresa"} id="interesado_nombre" name="interesado_nombre" type="text" placeholder="Nombre o Razón Social" error={!!formErrors.interesado_nombre} />
                     <CustomSelect label={formData.tipo_cliente === 'Persona' ? "Tipo de documento del cliente" : "Tipo de identidad empresarial"} name="interesado_tipo_documento" value={formData.interesado_tipo_documento} onChange={handleChange} options={tipoDocumentoClienteOptions} placeholder="Selecciona..." error={!!formErrors.interesado_tipo_documento} />
-                    <FormInput value={formData.interesado_documento} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Número de documento del cliente" : "Número de NIT/Registro"} id="interesado_documento" name="interesado_documento" type={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? 'tel' : 'text'} pattern={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? '[0-9]*' : '.*'} placeholder="Número" maxLength="15" error={!!formErrors.interesado_documento} />
+                    <FormInput 
+                      value={formData.interesado_documento} 
+                      onChange={handleChange} 
+                      label={formData.tipo_cliente === 'Persona' ? "Número de documento del cliente" : "Número de NIT/Registro"} 
+                      id="interesado_documento" 
+                      name="interesado_documento" 
+                      type={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? 'tel' : 'text'} 
+                      pattern={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? '[0-9.-]*' : '.*'} 
+                      placeholder={formData.tipo_cliente === 'Empresa' ? "Ej: 900.123.456-7" : "Ej: 1234567890"} 
+                      maxLength="20" 
+                      error={!!formErrors.interesado_documento} 
+                      hint={securityHint}
+                    />
                   </div>
                   {showVisitDetails && acompanantesBlock}
                 </fieldset>

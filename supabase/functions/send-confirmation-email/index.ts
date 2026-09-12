@@ -295,6 +295,40 @@ function getAdminEmailContent(formData: any) {
 
         ${acompanantesHtml}
         
+        <!-- Panel Interno de Verificación Rápida (Solo para VECY) -->
+        <div style="margin-top: 25px; padding: 16px; background-color: #1a1a1a; border: 1px solid #bf953f66; border-radius: 8px;">
+          <h3 style="color: #bf953f; margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;">
+            🛡️ Panel de Verificación Rápida (1 Clic)
+          </h3>
+          <p style="font-size: 12px; color: #a1a1aa; margin: 0 0 12px 0;">
+            Enlaces directos para cotejar en 1 clic los datos de los titulares en plataformas oficiales:
+          </p>
+          <div style="margin-bottom: 12px;">
+            <p style="font-size: 12px; color: #f0f0f0; margin: 0 0 6px 0;">
+              👤 <strong>Solicitante:</strong> ${solicitante_nombre} &mdash; <span style="color: #bf953f;">${formData.solicitante_tipo_documento || 'Doc'}: ${formData.solicitante_numero_documento || 'N/A'}</span>
+            </p>
+            <div style="margin-top: 4px;">
+              <a href="https://antecedentes.policia.gov.co:7005/WebJudicial/" target="_blank" style="background: #bf953f; color: #000; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 11px; display: inline-block; margin-right: 6px; margin-bottom: 4px;">👮 Antecedentes Policía</a>
+              <a href="https://verifiquese.com/" target="_blank" style="background: #27272a; color: #bf953f; border: 1px solid #bf953f88; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 11px; display: inline-block; margin-right: 6px; margin-bottom: 4px;">🔍 Verifíquese</a>
+              <a href="https://muisca.dian.gov.co/WebRutMuisca/DefConsultaEstadoRUT.faces" target="_blank" style="background: #27272a; color: #bf953f; border: 1px solid #bf953f88; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 11px; display: inline-block; margin-right: 6px; margin-bottom: 4px;">🏛️ DIAN (RUT / NIT)</a>
+              <a href="https://www.rues.org.co/" target="_blank" style="background: #27272a; color: #bf953f; border: 1px solid #bf953f88; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 11px; display: inline-block; margin-bottom: 4px;">🏢 RUES Cámaras</a>
+            </div>
+          </div>
+          ${formData.interesado_nombre ? `
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #333;">
+            <p style="font-size: 12px; color: #f0f0f0; margin: 0 0 6px 0;">
+              🤝 <strong>Cliente Referido:</strong> ${formData.interesado_nombre} &mdash; <span style="color: #bf953f;">${formData.interesado_tipo_documento || 'Doc'}: ${formData.interesado_documento || 'N/A'}</span>
+            </p>
+            <div style="margin-top: 4px;">
+              <a href="https://antecedentes.policia.gov.co:7005/WebJudicial/" target="_blank" style="background: #bf953f; color: #000; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 11px; display: inline-block; margin-right: 6px; margin-bottom: 4px;">👮 Antecedentes Policía</a>
+              <a href="https://verifiquese.com/" target="_blank" style="background: #27272a; color: #bf953f; border: 1px solid #bf953f88; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 11px; display: inline-block; margin-right: 6px; margin-bottom: 4px;">🔍 Verifíquese</a>
+              <a href="https://muisca.dian.gov.co/WebRutMuisca/DefConsultaEstadoRUT.faces" target="_blank" style="background: #27272a; color: #bf953f; border: 1px solid #bf953f88; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 11px; display: inline-block; margin-right: 6px; margin-bottom: 4px;">🏛️ DIAN (RUT / NIT)</a>
+              <a href="https://www.rues.org.co/" target="_blank" style="background: #27272a; color: #bf953f; border: 1px solid #bf953f88; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 11px; display: inline-block; margin-bottom: 4px;">🏢 RUES Cámaras</a>
+            </div>
+          </div>
+          ` : ''}
+        </div>
+
         <p style="text-align: center; margin-top: 30px; font-size: 12px; color: #888;">
           Este es un correo automático del sistema interno de Vecy Agenda.
         </p>
