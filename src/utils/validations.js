@@ -24,8 +24,8 @@ export const validateForm = (data) => {
     solicitante_tipo_documento: 'Tipo de Documento',
     solicitante_numero_documento: 'Número de Documento', 
     servicio_solicitado: 'Servicio solicitado',
-    codigo_inmueble: 'Código del Inmueble o Servicio', 
-    nombre_inmueble: 'Nombre del Inmueble',
+    codigo_inmueble: 'Código de Identificación', 
+    nombre_inmueble: 'Nombre del Inmueble o Servicio',
   };
 
   if (data.solicitante_tipo_persona === 'Persona Jurídica') {

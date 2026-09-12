@@ -128,6 +128,15 @@ function AgendaForm() {
     const file = e.target.files[0];
     if (!file) return;
 
+    setFormErrors(prev => {
+      if (!prev.firma_digital_archivo && !prev.metodoFirma) return prev;
+      const updated = { ...prev };
+      delete updated.firma_digital_archivo;
+      delete updated.metodoFirma;
+      return updated;
+    });
+    setError('');
+
     const reader = new FileReader();
     reader.onloadend = () => {
       // Al subir un archivo, se guarda su representación Base64 y el objeto del archivo.
@@ -144,6 +153,16 @@ function AgendaForm() {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     const rawValue = type === 'checkbox' ? checked : value;
+
+    // Limpiar el error de validación visual de este campo en tiempo real
+    setFormErrors(prev => {
+      if (!prev[name]) return prev;
+      const updated = { ...prev };
+      delete updated[name];
+      return updated;
+    });
+    setError('');
+
     setFormData(prev => {
       let val = rawValue;
       let newState = { ...prev, [name]: val };
@@ -189,6 +208,15 @@ function AgendaForm() {
 
   // Handler específico para los campos de acompañantes
   const handleAcompananteChange = (index, field, value) => {
+    const errorKey = `acomp_${index}_${field}`;
+    setFormErrors(prev => {
+      if (!prev[errorKey]) return prev;
+      const updated = { ...prev };
+      delete updated[errorKey];
+      return updated;
+    });
+    setError('');
+
     setFormData(prev => {
       const updated = [...prev.acompanantes];
       updated[index] = { ...updated[index], [field]: value };
@@ -198,10 +226,29 @@ function AgendaForm() {
 
   // 2. CORRECCIÓN: Se envuelve la función en `useCallback` para evitar re-renderizados innecesarios.
   const handleDateChange = useCallback((date) => {
+    if (date) {
+      setFormErrors(prev => {
+        if (!prev.fecha_cita_bogota) return prev;
+        const updated = { ...prev };
+        delete updated.fecha_cita_bogota;
+        return updated;
+      });
+      setError('');
+    }
     setFormData(prev => ({ ...prev, fecha_cita_bogota: date }));
   }, []); // El array de dependencias está vacío porque `setFormData` es estable y nunca cambia.
 
   const handleSignatureChange = useCallback((signatureData) => {
+    if (signatureData) {
+      setFormErrors(prev => {
+        if (!prev.firma_virtual_base64 && !prev.metodoFirma) return prev;
+        const updated = { ...prev };
+        delete updated.firma_virtual_base64;
+        delete updated.metodoFirma;
+        return updated;
+      });
+      setError('');
+    }
     setFormData(prevState => ({
       ...prevState,
       firma_virtual_base64: signatureData,
@@ -218,6 +265,9 @@ function AgendaForm() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setError('');
+    setFormErrors({});
+
     const validationErrors = validateForm(formData);
     if (Object.keys(validationErrors).length > 0) {
       const fieldErrorFlags = Object.keys(validationErrors).reduce((acc, key) => ({ ...acc, [key]: true }), {});
