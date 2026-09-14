@@ -110,7 +110,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
           status: output.status || 'processing',
           jobId: output.jobId,
-          message: output.message || 'Consultando antecedentes Policía Nacional...'
+          message: output.message || 'Verificando autenticidad del documento en tiempo real...'
         });
       }
     } catch (vpsErr) {
@@ -121,7 +121,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       valid: false,
       match: false,
-      error: 'No fue posible contactar el servicio de verificación oficial de la Policía Nacional. Por favor intenta de nuevo.'
+      error: 'No fue posible verificar el documento en este momento. Por favor intenta de nuevo en unos segundos.'
     });
   }
 

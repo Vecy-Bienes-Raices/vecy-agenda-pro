@@ -181,7 +181,7 @@ function AgendaForm() {
 
       if (startData.status === 'processing' && startData.jobId) {
         if (setProgressFeedback) {
-          setProgressFeedback('⏳ Consultando antecedentes Policía Nacional y resolviendo captcha oficial...');
+          setProgressFeedback('⏳ Verificando autenticidad del documento en tiempo real...');
         }
         const jobId = startData.jobId;
         const startTime = Date.now();
@@ -200,7 +200,7 @@ function AgendaForm() {
             console.warn('Sondeo en progreso...', pollErr?.message);
           }
         }
-        return { valid: false, match: false, error: 'La verificación ante la Policía Nacional tardó más de lo esperado. Por favor intenta de nuevo.' };
+        return { valid: false, match: false, error: 'La verificación del documento tardó más de lo esperado. Por favor intenta de nuevo.' };
       }
 
       return startData;
@@ -235,7 +235,7 @@ function AgendaForm() {
       } else {
         setIdentityError(null);
         setIdentityVerified(true);
-        setIdentitySuccessMsg(data.message || '✓ Identidad confirmada ante Registraduría / DIAN');
+        setIdentitySuccessMsg(data.message || '✓ Documento verificado y autenticado con éxito');
         setFormErrors(prev => {
           const updated = { ...prev };
           delete updated.solicitante_numero_documento;
@@ -494,7 +494,7 @@ function AgendaForm() {
         const data = await res.json();
         if (!res.ok || data.valid === false || data.match === false) {
           setIsSubmitting(false);
-          const errMsg = data.error || '⚠️ El número de documento no corresponde a los nombres y apellidos indicados. Por motivos de seguridad y veracidad legal, solo se permiten datos reales verificados.';
+          const errMsg = data.error || '⚠️ Inconsistencia de identidad: El número de documento no corresponde a los nombres y apellidos indicados. Por motivos de seguridad y veracidad legal, por favor verifica el número de documento o escribe el nombre de la persona que asistirá.';
           setIdentityError(errMsg);
           setIdentityVerified(false);
           setFormErrors(prev => ({ ...prev, solicitante_numero_documento: true }));
