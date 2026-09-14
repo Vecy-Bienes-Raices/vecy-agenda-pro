@@ -49,6 +49,16 @@ function AgendaForm() {
   const [consentGiven, setConsentGiven] = useState(false);
   const [session, setSession] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isValidatingDoc, setIsValidatingDoc] = useState(false);
+  const [identityError, setIdentityError] = useState(null);
+  const [identityVerified, setIdentityVerified] = useState(false);
+  const [identitySuccessMsg, setIdentitySuccessMsg] = useState(null);
+
+  // Estados de verificación para el Cliente Presentado por el Agente
+  const [isValidatingClientDoc, setIsValidatingClientDoc] = useState(false);
+  const [clientIdentityError, setClientIdentityError] = useState(null);
+  const [clientIdentityVerified, setClientIdentityVerified] = useState(false);
+  const [clientIdentitySuccessMsg, setClientIdentitySuccessMsg] = useState(null);
   const securityHint = "Validación de seguridad: Este número se coteja mediante herramientas de alta tecnología para su comprobación y verificación de datos veraces.";
 
   const normalizeCelular = (raw) => {
@@ -151,6 +161,119 @@ function AgendaForm() {
     reader.readAsDataURL(file);
   };
 
+  const handleVerifyIdentity = async (nombreIngresado, numeroDocumento, tipoDocumento) => {
+    const cleanDoc = (numeroDocumento || '').replace(/[^0-9a-zA-Z]/g, '');
+    if (!cleanDoc || cleanDoc.length < 5 || !tipoDocumento) {
+      return;
+    }
+
+    setIsValidatingDoc(true);
+    try {
+      const res = await fetch('/api/verify-identity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipoDocumento,
+          numeroDocumento: cleanDoc,
+          nombreIngresado: (nombreIngresado || '').trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.valid === false || data.match === false) {
+        const errMsg = data.error || '⚠️ El número de documento no corresponde a los nombres y apellidos indicados. Por motivos de seguridad y veracidad legal, solo se permiten datos reales verificados.';
+        setIdentityError(errMsg);
+        setIdentityVerified(false);
+        setIdentitySuccessMsg(null);
+        setFormErrors(prev => ({ ...prev, solicitante_numero_documento: true }));
+      } else {
+        setIdentityError(null);
+        setIdentityVerified(true);
+        setIdentitySuccessMsg(data.message || '✓ Identidad confirmada ante Registraduría / DIAN');
+        setFormErrors(prev => {
+          const updated = { ...prev };
+          delete updated.solicitante_numero_documento;
+          return updated;
+        });
+
+        // Autocompletar el nombre oficial si la API de verificación lo devolvió
+        if (data.officialName && data.officialName.toLowerCase() !== (nombreIngresado || '').trim().toLowerCase()) {
+          setFormData(prev => ({ ...prev, solicitante_nombre: data.officialName }));
+        }
+      }
+    } catch (err) {
+      console.warn('Error verificando identidad:', err);
+    } finally {
+      setIsValidatingDoc(false);
+    }
+  };
+
+  const handleDocBlur = () => {
+    if (formData.solicitante_numero_documento && formData.solicitante_numero_documento.length >= 5) {
+      handleVerifyIdentity(formData.solicitante_nombre, formData.solicitante_numero_documento, formData.solicitante_tipo_documento);
+    }
+  };
+
+  const handleNameBlur = () => {
+    if (formData.solicitante_numero_documento && formData.solicitante_numero_documento.length >= 5) {
+      handleVerifyIdentity(formData.solicitante_nombre, formData.solicitante_numero_documento, formData.solicitante_tipo_documento);
+    }
+  };
+
+  const handleVerifyClientIdentity = async (nombreIngresado, numeroDocumento, tipoDocumento) => {
+    const cleanDoc = (numeroDocumento || '').replace(/[^0-9a-zA-Z]/g, '');
+    if (!cleanDoc || cleanDoc.length < 5) return;
+
+    setIsValidatingClientDoc(true);
+    try {
+      const res = await fetch('/api/verify-identity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipoDocumento: tipoDocumento || 'Cédula de ciudadanía',
+          numeroDocumento: cleanDoc,
+          nombreIngresado: (nombreIngresado || '').trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.valid === false || data.match === false) {
+        const errMsg = data?.error || '⚠️ El número de documento no corresponde al nombre del cliente presentado. Por motivos de seguridad, solo se permiten datos reales verificados.';
+        setClientIdentityError(errMsg);
+        setClientIdentityVerified(false);
+        setClientIdentitySuccessMsg(null);
+        setFormErrors(prev => ({ ...prev, interesado_documento: true }));
+      } else {
+        setClientIdentityError(null);
+        setClientIdentityVerified(true);
+        setClientIdentitySuccessMsg(data.message || '✓ Identidad del cliente confirmada');
+        setFormErrors(prev => {
+          const updated = { ...prev };
+          delete updated.interesado_documento;
+          return updated;
+        });
+        if (data.officialName && data.officialName.toLowerCase() !== (nombreIngresado || '').trim().toLowerCase()) {
+          setFormData(prev => ({ ...prev, interesado_nombre: data.officialName }));
+        }
+      }
+    } catch (err) {
+      console.warn('Error verificando cliente presentado:', err);
+    } finally {
+      setIsValidatingClientDoc(false);
+    }
+  };
+
+  const handleClientDocBlur = () => {
+    if (formData.interesado_documento && formData.interesado_documento.length >= 5) {
+      handleVerifyClientIdentity(formData.interesado_nombre, formData.interesado_documento, formData.interesado_tipo_documento);
+    }
+  };
+
+  const handleClientNameBlur = () => {
+    if (formData.interesado_documento && formData.interesado_documento.length >= 5) {
+      handleVerifyClientIdentity(formData.interesado_nombre, formData.interesado_documento, formData.interesado_tipo_documento);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     const rawValue = type === 'checkbox' ? checked : value;
@@ -163,6 +286,14 @@ function AgendaForm() {
       return updated;
     });
     setError('');
+
+    if (name === 'solicitante_numero_documento' || name === 'solicitante_nombre' || name === 'solicitante_tipo_documento') {
+      setIdentityVerified(false);
+      setIdentitySuccessMsg(null);
+      if (identityError) {
+        setIdentityError(null);
+      }
+    }
 
     setFormData(prev => {
       let val = rawValue;
@@ -285,12 +416,54 @@ function AgendaForm() {
     setError('');
     setFormErrors({});
 
+    if (identityError) {
+      setError(identityError);
+      const el = document.getElementById('solicitante_numero_documento');
+      if (el) el.focus();
+      return;
+    }
+
     const validationErrors = validateForm(formData);
     if (Object.keys(validationErrors).length > 0) {
       const fieldErrorFlags = Object.keys(validationErrors).reduce((acc, key) => ({ ...acc, [key]: true }), {});
       setFormErrors(fieldErrorFlags);
       setError(Object.values(validationErrors)[0]);
       return;
+    }
+
+    // Verificación final de seguridad si no se ha validado
+    if (formData.solicitante_numero_documento && formData.solicitante_tipo_documento && !identityVerified) {
+      setIsSubmitting(true);
+      try {
+        const cleanDoc = formData.solicitante_numero_documento.replace(/[^0-9a-zA-Z]/g, '');
+        const res = await fetch('/api/verify-identity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tipoDocumento: formData.solicitante_tipo_documento,
+            numeroDocumento: cleanDoc,
+            nombreIngresado: (formData.solicitante_nombre || '').trim(),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.valid === false || data.match === false) {
+          setIsSubmitting(false);
+          const errMsg = data.error || '⚠️ El número de documento no corresponde a los nombres y apellidos indicados. Por motivos de seguridad y veracidad legal, solo se permiten datos reales verificados.';
+          setIdentityError(errMsg);
+          setIdentityVerified(false);
+          setFormErrors(prev => ({ ...prev, solicitante_numero_documento: true }));
+          setError(errMsg);
+          const el = document.getElementById('solicitante_numero_documento');
+          if (el) el.focus();
+          return;
+        }
+        if (data.officialName) {
+          formData.solicitante_nombre = data.officialName;
+        }
+        setIdentityVerified(true);
+      } catch (err) {
+        console.warn('Verificación en envío omitida por error de red', err);
+      }
     }
 
     setIsSubmitting(true);
@@ -504,7 +677,18 @@ function AgendaForm() {
         {consentGiven && (
           <>
             <fieldset className="border-t-2 border-soft-gold pt-6 mb-10"><legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">1. Tus Datos</legend><div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-              <FormInput onChange={handleChange} value={formData.solicitante_nombre} label="Nombre Completo o Razón Social" id="solicitante_nombre" name="solicitante_nombre" type="text" placeholder="Ej: Juan Pérez o Constructora XYZ" required error={!!formErrors.solicitante_nombre} />
+              <FormInput 
+                onChange={handleChange} 
+                onBlur={handleNameBlur}
+                value={formData.solicitante_nombre} 
+                label="Nombre Completo o Razón Social" 
+                id="solicitante_nombre" 
+                name="solicitante_nombre" 
+                type="text" 
+                placeholder="Ej: Juan Pérez o Constructora XYZ" 
+                required 
+                error={!!formErrors.solicitante_nombre} 
+              />
               <CustomSelect label="Tipo de Persona" name="solicitante_tipo_persona" value={formData.solicitante_tipo_persona} onChange={handleChange} options={tipoPersonaOptions} placeholder="Selecciona..." error={!!formErrors.solicitante_tipo_persona} />
               <CustomSelect label="Perfil" name="solicitante_perfil" value={formData.solicitante_perfil} onChange={handleChange} options={perfilOptions} placeholder="Selecciona tu perfil..." error={!!formErrors.solicitante_perfil} />
               <FormInput onChange={handleChange} value={formData.solicitante_email} label="Correo Electrónico" id="solicitante_email" name="solicitante_email" type="email" placeholder="tucorreo@ejemplo.com" required error={!!formErrors.solicitante_email} />
@@ -512,6 +696,7 @@ function AgendaForm() {
               <CustomSelect label="Tipo de Documento" name="solicitante_tipo_documento" value={formData.solicitante_tipo_documento} onChange={handleChange} options={tipoDocumentoOptions} placeholder="Selecciona..." error={!!formErrors.solicitante_tipo_documento} />
               <FormInput 
                 onChange={handleChange} 
+                onBlur={handleDocBlur}
                 value={formData.solicitante_numero_documento} 
                 label={isCompanyDoc ? "Número de Identificación (NIT/RUT)" : "Número de Documento"} 
                 id="solicitante_numero_documento" 
@@ -521,7 +706,10 @@ function AgendaForm() {
                 placeholder={isCompanyDoc ? "Ej: 900.123.456-7" : "Ej: 1234567890"} 
                 required 
                 maxLength="20" 
-                error={!!formErrors.solicitante_numero_documento} 
+                error={!!formErrors.solicitante_numero_documento || !!identityError} 
+                errorAlert={identityError}
+                successBadge={identitySuccessMsg}
+                isValidating={isValidatingDoc}
                 hint={securityHint}
               />
               {formData.solicitante_tipo_persona === 'Persona Jurídica' && (
@@ -571,11 +759,22 @@ function AgendaForm() {
                   <legend className="text-xl font-semibold section-legend-gold px-2 -ml-2">3. Presenta a tu Cliente</legend>
                   <div className="p-4 bg-black/10 rounded-lg mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <CustomSelect label="Tu cliente es:" name="tipo_cliente" value={formData.tipo_cliente} onChange={handleChange} options={tipoClienteOptions} placeholder="Selecciona..." error={!!formErrors.tipo_cliente} />
-                    <FormInput value={formData.interesado_nombre} onChange={handleChange} label={formData.tipo_cliente === 'Persona' ? "Nombre completo del cliente" : "Razón Social de la Empresa"} id="interesado_nombre" name="interesado_nombre" type="text" placeholder="Nombre o Razón Social" error={!!formErrors.interesado_nombre} />
+                    <FormInput 
+                      value={formData.interesado_nombre} 
+                      onChange={handleChange} 
+                      onBlur={handleClientNameBlur}
+                      label={formData.tipo_cliente === 'Persona' ? "Nombre completo del cliente" : "Razón Social de la Empresa"} 
+                      id="interesado_nombre" 
+                      name="interesado_nombre" 
+                      type="text" 
+                      placeholder="Nombre o Razón Social" 
+                      error={!!formErrors.interesado_nombre} 
+                    />
                     <CustomSelect label={formData.tipo_cliente === 'Persona' ? "Tipo de documento del cliente" : "Tipo de identidad empresarial"} name="interesado_tipo_documento" value={formData.interesado_tipo_documento} onChange={handleChange} options={tipoDocumentoClienteOptions} placeholder="Selecciona..." error={!!formErrors.interesado_tipo_documento} />
                     <FormInput 
                       value={formData.interesado_documento} 
                       onChange={handleChange} 
+                      onBlur={handleClientDocBlur}
                       label={formData.tipo_cliente === 'Persona' ? "Número de documento del cliente" : "Número de NIT/Registro"} 
                       id="interesado_documento" 
                       name="interesado_documento" 
@@ -583,7 +782,10 @@ function AgendaForm() {
                       pattern={formData.tipo_cliente === 'Empresa' || (formData.tipo_cliente === 'Persona' && !isClientPassport) ? '[0-9.-]*' : '.*'} 
                       placeholder={formData.tipo_cliente === 'Empresa' ? "Ej: 900.123.456-7" : "Ej: 1234567890"} 
                       maxLength="20" 
-                      error={!!formErrors.interesado_documento} 
+                      error={!!formErrors.interesado_documento || !!clientIdentityError} 
+                      errorAlert={clientIdentityError}
+                      successBadge={clientIdentitySuccessMsg}
+                      isValidating={isValidatingClientDoc}
                       hint={securityHint}
                     />
                   </div>
@@ -626,7 +828,20 @@ function AgendaForm() {
             )}
 
             <AuthorizationCheckbox formData={formData} handleChange={handleChange} isAgentView={showAgentSections} error={!!formErrors.autorizacion} />
-            <div className="mt-8"><button type="submit" disabled={isSubmitting} className="w-full bg-soft-gold hover:bg-gold-bright text-volcanic-black font-bold py-4 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-luminous-gold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed btn-pulse-gold">{isSubmitting ? <Spinner /> : null}{isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}</button></div>
+            <div className="mt-8">
+              <button 
+                type="submit" 
+                disabled={isSubmitting || !!identityError} 
+                className={`w-full font-bold py-4 px-4 rounded-lg transition-all duration-300 shadow-lg flex items-center justify-center disabled:cursor-not-allowed ${
+                  identityError 
+                    ? 'bg-red-950/80 border-2 border-red-500/70 text-red-300 cursor-not-allowed shadow-[0_0_20px_rgba(239,68,68,0.3)]' 
+                    : 'bg-soft-gold hover:bg-gold-bright text-volcanic-black hover:shadow-luminous-gold disabled:opacity-50 btn-pulse-gold'
+                }`}
+              >
+                {isSubmitting ? <Spinner /> : null}
+                {isSubmitting ? 'Enviando...' : (identityError ? '⚠️ Bloqueado: Corrige el documento para agendar' : 'Enviar Solicitud')}
+              </button>
+            </div>
             {error && (<div className="mt-4 text-center text-red-400 bg-red-900/50 p-3 rounded-lg">{error}</div>)}
           </>
         )}
