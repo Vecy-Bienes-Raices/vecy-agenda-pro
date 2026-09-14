@@ -161,15 +161,10 @@ function AgendaForm() {
     reader.readAsDataURL(file);
   };
 
-  const handleVerifyIdentity = async (nombreIngresado, numeroDocumento, tipoDocumento) => {
-    const cleanDoc = (numeroDocumento || '').replace(/[^0-9a-zA-Z]/g, '');
-    if (!cleanDoc || cleanDoc.length < 5 || !tipoDocumento) {
-      return;
-    }
-
-    setIsValidatingDoc(true);
+  // Función de verificación asíncrona con sondeo cada 2.5s (0% Timeouts 504)
+  const runVerificationJob = async (tipoDocumento, cleanDoc, nombreIngresado, setProgressFeedback) => {
     try {
-      const res = await fetch('/api/verify-identity', {
+      const startRes = await fetch('/api/verify-identity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -179,9 +174,60 @@ function AgendaForm() {
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok || data.valid === false || data.match === false) {
-        const errMsg = data.error || '⚠️ El número de documento no corresponde a los nombres y apellidos indicados. Por motivos de seguridad y veracidad legal, solo se permiten datos reales verificados.';
+      const startData = await startRes.json();
+      if (startData.valid !== undefined) {
+        return startData;
+      }
+
+      if (startData.status === 'processing' && startData.jobId) {
+        if (setProgressFeedback) {
+          setProgressFeedback('⏳ Consultando antecedentes Policía Nacional y resolviendo captcha oficial...');
+        }
+        const jobId = startData.jobId;
+        const startTime = Date.now();
+        while (Date.now() - startTime < 70000) {
+          await new Promise(r => setTimeout(r, 2500));
+          try {
+            const checkRes = await fetch(`/api/verify-identity?action=check&jobId=${encodeURIComponent(jobId)}`);
+            const checkData = await checkRes.json();
+            if (checkData.status === 'completed' && checkData.result) {
+              return checkData.result;
+            }
+            if (checkData.status === 'error') {
+              return { valid: false, match: false, error: checkData.error || 'Error en la verificación de identidad' };
+            }
+          } catch (pollErr) {
+            console.warn('Sondeo en progreso...', pollErr?.message);
+          }
+        }
+        return { valid: false, match: false, error: 'La verificación ante la Policía Nacional tardó más de lo esperado. Por favor intenta de nuevo.' };
+      }
+
+      return startData;
+    } catch (err) {
+      console.error('Error en runVerificationJob:', err);
+      return { valid: false, match: false, error: 'No se pudo conectar con el servicio de verificación.' };
+    }
+  };
+
+  const handleVerifyIdentity = async (nombreIngresado, numeroDocumento, tipoDocumento) => {
+    const cleanDoc = (numeroDocumento || '').replace(/[^0-9a-zA-Z]/g, '');
+    if (!cleanDoc || cleanDoc.length < 5 || !tipoDocumento) {
+      return;
+    }
+
+    setIsValidatingDoc(true);
+    setIdentityError(null);
+    try {
+      const data = await runVerificationJob(
+        tipoDocumento,
+        cleanDoc,
+        nombreIngresado,
+        (msg) => setIdentitySuccessMsg(msg)
+      );
+
+      if (!data || data.valid === false || data.match === false) {
+        const errMsg = data?.error || '⚠️ El número de documento no corresponde a los nombres y apellidos indicados. Por motivos de seguridad y veracidad legal, solo se permiten datos reales verificados.';
         setIdentityError(errMsg);
         setIdentityVerified(false);
         setIdentitySuccessMsg(null);
