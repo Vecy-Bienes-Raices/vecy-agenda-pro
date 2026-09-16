@@ -2,10 +2,10 @@
 // Con validación doctrinal instantánea (0ms) para familia VECY y reglas colombianas estrictas
 
 const AUTHORITATIVE_FAMILY_IDENTITIES = {
-  // 1. Cédula Daniel Eduardo Rivera Noguera (CC: 1233903423)
+  // 1. Cédula Daniel Eduardo Rivera Noguera (CC: 1233903423) - Exclusivo e independiente de Vecy
   '1233903423': {
     canonicalName: 'Daniel Eduardo Rivera Noguera',
-    allowedKeywords: ['daniel', 'eduardo', 'rivera', 'noguera', 'vecy', 'bienes', 'raices', 'raíces'],
+    allowedKeywords: ['daniel', 'eduardo', 'rivera', 'noguera'],
     isCompany: false,
     message: '✓ Identidad verificada y autenticada con éxito: Daniel Eduardo Rivera Noguera',
   },
@@ -177,7 +177,7 @@ export default async function handler(req, res) {
       }
 
       const isEduardo = normName.includes('eduardo') && (normName.includes('rivera') || normName.includes('arturo'));
-      if (isEduardo && cleanDoc !== '11189781' && cleanDoc !== '1233903423') {
+      if (isEduardo && cleanDoc !== '11189781') {
         return res.status(200).json({
           valid: false,
           match: false,
@@ -186,7 +186,7 @@ export default async function handler(req, res) {
       }
 
       const isVecy = normName.includes('vecy');
-      if (isVecy && cleanDoc !== '410575061' && cleanDoc !== '41057506' && cleanDoc !== '1233903423') {
+      if (isVecy && cleanDoc !== '410575061' && cleanDoc !== '41057506') {
         return res.status(200).json({
           valid: false,
           match: false,
@@ -216,12 +216,14 @@ export default async function handler(req, res) {
 
         if (cleanDoc === '1233903423') {
           if (normName.includes('vecy')) {
-            displayName = 'Vecy Bienes Raíces';
-            msg = '✓ Identidad corporativa verificada y autorizada: Vecy Bienes Raíces';
-          } else {
-            displayName = 'Daniel Eduardo Rivera Noguera';
-            msg = '✓ Identidad verificada y autenticada con éxito: Daniel Eduardo Rivera Noguera';
+            return res.status(200).json({
+              valid: false,
+              match: false,
+              error: '⚠️ El documento 1233903423 pertenece a Daniel Eduardo Rivera Noguera y no corresponde a Vecy Bienes Raíces (el NIT oficial de Vecy Bienes Raíces es 41057506-1).',
+            });
           }
+          displayName = 'Daniel Eduardo Rivera Noguera';
+          msg = '✓ Identidad verificada y autenticada con éxito: Daniel Eduardo Rivera Noguera';
         } else if (cleanDoc === '410575061' || (cleanDoc === '41057506' && (isNit || normName.includes('vecy')))) {
           displayName = 'Vecy Bienes Raíces';
           msg = '✓ Identidad corporativa verificada y autorizada: Vecy Bienes Raíces (NIT: 41057506-1)';

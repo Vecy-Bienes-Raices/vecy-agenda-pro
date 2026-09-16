@@ -257,7 +257,8 @@ function AgendaForm() {
             solicitante_nombre: data.officialName,
             ...(isVecyCompany ? {
               solicitante_tipo_persona: 'Persona Jurídica',
-              solicitante_tipo_documento: 'NIT'
+              solicitante_tipo_documento: 'NIT',
+              solicitante_numero_documento: prev.solicitante_numero_documento.includes('-') ? prev.solicitante_numero_documento : (prev.solicitante_numero_documento === '41057506' || prev.solicitante_numero_documento === '410575061' ? '41057506-1' : prev.solicitante_numero_documento)
             } : {})
           }));
         }
