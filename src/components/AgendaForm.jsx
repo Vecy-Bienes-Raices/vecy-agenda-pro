@@ -249,9 +249,17 @@ function AgendaForm() {
           return updated;
         });
 
-        // Autocompletar el nombre oficial si la API de verificación lo devolvió
-        if (data.officialName && data.officialName.toLowerCase() !== (nombreIngresado || '').trim().toLowerCase()) {
-          setFormData(prev => ({ ...prev, solicitante_nombre: data.officialName }));
+        // Autocompletar siempre con los nombres y apellidos completos oficiales verificados
+        if (data.officialName) {
+          const isVecyCompany = data.officialName === 'Vecy Bienes Raíces' || data.isCompany;
+          setFormData(prev => ({
+            ...prev,
+            solicitante_nombre: data.officialName,
+            ...(isVecyCompany ? {
+              solicitante_tipo_persona: 'Persona Jurídica',
+              solicitante_tipo_documento: 'NIT'
+            } : {})
+          }));
         }
       }
     } catch (err) {
@@ -278,18 +286,16 @@ function AgendaForm() {
     if (!cleanDoc || cleanDoc.length < 5) return;
 
     setIsValidatingClientDoc(true);
+    setClientIdentityError(null);
     try {
-      const res = await fetch('/api/verify-identity', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tipoDocumento: tipoDocumento || 'Cédula de ciudadanía',
-          numeroDocumento: cleanDoc,
-          nombreIngresado: (nombreIngresado || '').trim(),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.valid === false || data.match === false) {
+      const data = await runVerificationJob(
+        tipoDocumento || 'Cédula de ciudadanía',
+        cleanDoc,
+        nombreIngresado,
+        (msg) => setClientIdentitySuccessMsg(msg)
+      );
+
+      if (!data || data.valid === false || data.match === false) {
         const errMsg = data?.error || '⚠️ El número de documento no corresponde al nombre del cliente presentado. Por motivos de seguridad, solo se permiten datos reales verificados.';
         setClientIdentityError(errMsg);
         setClientIdentityVerified(false);
@@ -304,7 +310,7 @@ function AgendaForm() {
           delete updated.interesado_documento;
           return updated;
         });
-        if (data.officialName && data.officialName.toLowerCase() !== (nombreIngresado || '').trim().toLowerCase()) {
+        if (data.officialName) {
           setFormData(prev => ({ ...prev, interesado_nombre: data.officialName }));
         }
       }
@@ -361,7 +367,7 @@ function AgendaForm() {
           return updated;
         });
 
-        if (data.officialName && data.officialName.toLowerCase() !== (nombreIngresado || '').trim().toLowerCase()) {
+        if (data.officialName) {
           setFormData(prev => {
             const updated = [...prev.acompanantes];
             if (updated[index]) {

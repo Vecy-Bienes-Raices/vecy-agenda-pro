@@ -2,27 +2,38 @@
 // Con validación doctrinal instantánea (0ms) para familia VECY y reglas colombianas estrictas
 
 const AUTHORITATIVE_FAMILY_IDENTITIES = {
+  // 1. Cédula Daniel Eduardo Rivera Noguera (CC: 1233903423)
   '1233903423': {
-    canonicalName: 'Vecy Bienes Raíces',
-    allowedKeywords: ['vecy', 'bienes', 'raices', 'daniel', 'eduardo', 'rivera', 'noguera'],
-    isCompany: true,
-    message: '✓ Identidad corporativa verificada y autorizada: Vecy Bienes Raíces',
+    canonicalName: 'Daniel Eduardo Rivera Noguera',
+    allowedKeywords: ['daniel', 'eduardo', 'rivera', 'noguera', 'vecy', 'bienes', 'raices', 'raíces'],
+    isCompany: false,
+    message: '✓ Identidad verificada y autenticada con éxito: Daniel Eduardo Rivera Noguera',
   },
+  // 2. Cédula Eduardo Arturo Rivera Martínez (Fundador y Director de Tecnología)
   '11189781': {
     canonicalName: 'Eduardo Arturo Rivera Martínez',
-    allowedKeywords: ['eduardo', 'arturo', 'rivera', 'martinez'],
+    allowedKeywords: ['eduardo', 'arturo', 'rivera', 'martinez', 'martínez', 'eddu', 'eddua'],
     isCompany: false,
     message: '✓ Identidad verificada y autenticada con éxito: Eduardo Arturo Rivera Martínez',
   },
+  // 3. Cédula Natalia Rivera Noguera (Hija de Eduardo)
   '1193130766': {
-    canonicalName: 'Natalia Rivera',
-    allowedKeywords: ['natalia', 'rivera'],
+    canonicalName: 'Natalia Rivera Noguera',
+    allowedKeywords: ['natalia', 'rivera', 'noguera'],
     isCompany: false,
-    message: '✓ Identidad verificada y autenticada con éxito: Natalia Rivera',
+    message: '✓ Identidad verificada y autenticada con éxito: Natalia Rivera Noguera',
   },
+  // 4. NIT Vecy Bienes Raíces (Persona Jurídica - NIT: 41057506-1)
+  '410575061': {
+    canonicalName: 'Vecy Bienes Raíces',
+    allowedKeywords: ['vecy', 'bienes', 'raices', 'raíces', 'jani', 'alves', 'souza'],
+    isCompany: true,
+    message: '✓ Identidad corporativa verificada y autorizada: Vecy Bienes Raíces (NIT: 41057506-1)',
+  },
+  // 5. Cédula Jani Alves Souza / NIT Base Vecy
   '41057506': {
     canonicalName: 'Jani Alves Souza',
-    allowedKeywords: ['jani', 'alves', 'souza'],
+    allowedKeywords: ['jani', 'alves', 'souza', 'vecy', 'bienes', 'raices', 'raíces'],
     isCompany: false,
     message: '✓ Identidad verificada y autenticada con éxito: Jani Alves Souza',
   },
@@ -145,14 +156,23 @@ export default async function handler(req, res) {
     }
 
     // Verificación inversa para nombres de Fundadores y Vecy Bienes Raíces (0ms instantáneo)
-    const normName = (nombreIngresado || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const normName = (nombreIngresado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     if (normName.length >= 4) {
-      const isNatalia = normName.includes('natalia') && (normName.includes('rivera') || normName.trim() === 'natalia');
+      const isDaniel = normName.includes('daniel') && (normName.includes('rivera') || normName.includes('noguera') || normName.trim() === 'daniel');
+      if (isDaniel && cleanDoc !== '1233903423') {
+        return res.status(200).json({
+          valid: false,
+          match: false,
+          error: `⚠️ El documento ${cleanDoc} no corresponde a Daniel Eduardo Rivera Noguera (su cédula oficial registrada es 1233903423). Corrige el número para continuar.`
+        });
+      }
+
+      const isNatalia = normName.includes('natalia') && (normName.includes('rivera') || normName.includes('noguera') || normName.trim() === 'natalia');
       if (isNatalia && cleanDoc !== '1193130766') {
         return res.status(200).json({
           valid: false,
           match: false,
-          error: `⚠️ El documento ${cleanDoc} no corresponde a Natalia Rivera (el documento oficial registrado es 1193130766). Corrige el número para continuar.`
+          error: `⚠️ El documento ${cleanDoc} no corresponde a Natalia Rivera Noguera (el documento oficial registrado es 1193130766). Corrige el número para continuar.`
         });
       }
 
@@ -161,16 +181,16 @@ export default async function handler(req, res) {
         return res.status(200).json({
           valid: false,
           match: false,
-          error: `⚠️ El documento ${cleanDoc} no corresponde a Eduardo Rivera (su cédula oficial registrada es 11189781). Corrige el número para continuar.`
+          error: `⚠️ El documento ${cleanDoc} no corresponde a Eduardo Arturo Rivera Martínez (su cédula oficial registrada es 11189781). Corrige el número para continuar.`
         });
       }
 
       const isVecy = normName.includes('vecy');
-      if (isVecy && cleanDoc !== '1233903423') {
+      if (isVecy && cleanDoc !== '410575061' && cleanDoc !== '41057506' && cleanDoc !== '1233903423') {
         return res.status(200).json({
           valid: false,
           match: false,
-          error: `⚠️ El documento ${cleanDoc} no corresponde a Vecy Bienes Raíces (el documento oficial registrado es 1233903423). Corrige el número para continuar.`
+          error: `⚠️ El documento ${cleanDoc} no corresponde a Vecy Bienes Raíces (NIT oficial: 41057506-1). Corrige el número para continuar.`
         });
       }
 
@@ -192,18 +212,30 @@ export default async function handler(req, res) {
 
       if (matchesKeyword) {
         let displayName = authEntry.canonicalName;
-        if (authEntry.isCompany) {
+        let msg = authEntry.message;
+
+        if (cleanDoc === '1233903423') {
           if (normName.includes('vecy')) {
             displayName = 'Vecy Bienes Raíces';
-          } else if (normName.includes('daniel')) {
+            msg = '✓ Identidad corporativa verificada y autorizada: Vecy Bienes Raíces';
+          } else {
             displayName = 'Daniel Eduardo Rivera Noguera';
+            msg = '✓ Identidad verificada y autenticada con éxito: Daniel Eduardo Rivera Noguera';
           }
+        } else if (cleanDoc === '410575061' || (cleanDoc === '41057506' && (isNit || normName.includes('vecy')))) {
+          displayName = 'Vecy Bienes Raíces';
+          msg = '✓ Identidad corporativa verificada y autorizada: Vecy Bienes Raíces (NIT: 41057506-1)';
+        } else if (cleanDoc === '41057506') {
+          displayName = 'Jani Alves Souza';
+          msg = '✓ Identidad verificada y autenticada con éxito: Jani Alves Souza';
         }
+
         return res.status(200).json({
           valid: true,
           match: true,
           officialName: displayName,
-          message: authEntry.message,
+          isCompany: displayName === 'Vecy Bienes Raíces',
+          message: msg,
         });
       } else {
         return res.status(200).json({
