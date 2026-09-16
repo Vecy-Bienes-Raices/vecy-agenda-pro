@@ -92,71 +92,9 @@ export default async function handler(req, res) {
 
     const tDocLower = (tipoDocumento || '').toLowerCase();
     const isNit = tDocLower.includes('nit') || tDocLower.includes('rut');
-
-    // Validación DIAN para NIT/RUT
-    if (isNit) {
-      if (!/^\d{9,10}$/.test(cleanDoc)) {
-        return res.status(200).json({
-          valid: false,
-          match: false,
-          error: 'El NIT debe contener 9 o 10 dígitos numéricos (incluyendo dígito de verificación).'
-        });
-      }
-      const cleanNit = cleanDoc.slice(0, 9);
-      const dvCalculado = calcularDigitoVerificacionDIAN(cleanNit);
-      if (cleanDoc.length === 10) {
-        const dvIngresado = cleanDoc.slice(9);
-        if (dvIngresado !== dvCalculado) {
-          return res.status(200).json({
-            valid: false,
-            match: false,
-            error: `Dígito de verificación DIAN incorrecto. Para el NIT ${cleanNit}, el dígito oficial es -${dvCalculado}.`
-          });
-        }
-      }
-      return res.status(200).json({
-        valid: true,
-        match: true,
-        officialName: (nombreIngresado || '').trim() || cleanDoc,
-        message: `✓ NIT/RUT validado conforme a estructura DIAN (Dígito de verificación: ${dvCalculado})`
-      });
-    }
-
-    // Reglas estructurales de Cédula de Ciudadanía colombiana
-    const isCedula = !isNit && (tDocLower.includes('cédula') || tDocLower.includes('cedula') || tDocLower === '' || tDocLower.includes('ciudadan'));
-    if (isCedula) {
-      if (!/^\d+$/.test(cleanDoc)) {
-        return res.status(200).json({
-          valid: false,
-          match: false,
-          error: 'La Cédula de Ciudadanía solo debe contener caracteres numéricos.'
-        });
-      }
-      if (cleanDoc.length === 9) {
-        return res.status(200).json({
-          valid: false,
-          match: false,
-          error: '⚠️ En Colombia no existen Cédulas de Ciudadanía de 9 dígitos. Verifica si omitiste o agregaste algún número.'
-        });
-      }
-      if (cleanDoc.length < 6 || cleanDoc.length > 10) {
-        return res.status(200).json({
-          valid: false,
-          match: false,
-          error: '⚠️ La Cédula de Ciudadanía en Colombia debe contener entre 6 y 8 dígitos (antiguas) o 10 dígitos (nuevas).'
-        });
-      }
-      if (cleanDoc.length === 10 && !cleanDoc.startsWith('1')) {
-        return res.status(200).json({
-          valid: false,
-          match: false,
-          error: '⚠️ Las Cédulas de Ciudadanía de 10 dígitos en Colombia deben iniciar por 1. Verifica el número digitado.'
-        });
-      }
-    }
-
-    // Verificación inversa para nombres de Fundadores y Vecy Bienes Raíces (0ms instantáneo)
     const normName = (nombreIngresado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    // 1. Verificación inversa para nombres de Fundadores y Vecy Bienes Raíces (0ms instantáneo)
     if (normName.length >= 4) {
       const isDaniel = normName.includes('daniel') && (normName.includes('rivera') || normName.includes('noguera') || normName.trim() === 'daniel');
       if (isDaniel && cleanDoc !== '1233903423') {
@@ -204,29 +142,30 @@ export default async function handler(req, res) {
       }
     }
 
-    // Verificación directa en base doctrinal autoritativa de la familia VECY (0ms instantáneo)
+    // 2. Verificación directa en base doctrinal autoritativa de la familia VECY (0ms instantáneo)
     const authEntry = AUTHORITATIVE_FAMILY_IDENTITIES[cleanDoc];
     if (authEntry) {
       const tokens = normName.split(/[\s,.-]+/).filter(Boolean);
       const matchesKeyword = tokens.length === 0 || tokens.some(t => authEntry.allowedKeywords.some(kw => kw === t || t.startsWith(kw) || kw.startsWith(t)));
+
+      if (cleanDoc === '1233903423' && normName.includes('vecy')) {
+        return res.status(200).json({
+          valid: false,
+          match: false,
+          error: '⚠️ El documento 1233903423 pertenece a Daniel Eduardo Rivera Noguera y no corresponde a Vecy Bienes Raíces (el NIT oficial de Vecy Bienes Raíces es 41057506-1).',
+        });
+      }
 
       if (matchesKeyword) {
         let displayName = authEntry.canonicalName;
         let msg = authEntry.message;
 
         if (cleanDoc === '1233903423') {
-          if (normName.includes('vecy')) {
-            return res.status(200).json({
-              valid: false,
-              match: false,
-              error: '⚠️ El documento 1233903423 pertenece a Daniel Eduardo Rivera Noguera y no corresponde a Vecy Bienes Raíces (el NIT oficial de Vecy Bienes Raíces es 41057506-1).',
-            });
-          }
           displayName = 'Daniel Eduardo Rivera Noguera';
           msg = '✓ Identidad verificada y autenticada con éxito: Daniel Eduardo Rivera Noguera';
         } else if (cleanDoc === '410575061' || (cleanDoc === '41057506' && (isNit || normName.includes('vecy')))) {
           displayName = 'Vecy Bienes Raíces';
-          msg = '✓ Identidad corporativa verificada y autorizada: Vecy Bienes Raíces (NIT: 41057506-1)';
+          msg = '✓ Identidad oficial verificada y autorizada: Vecy Bienes Raíces (NIT: 41057506-1)';
         } else if (cleanDoc === '41057506') {
           displayName = 'Jani Alves Souza';
           msg = '✓ Identidad verificada y autenticada con éxito: Jani Alves Souza';
@@ -245,6 +184,68 @@ export default async function handler(req, res) {
           match: false,
           officialName: authEntry.canonicalName,
           error: `⚠️ El número de documento ${cleanDoc} no corresponde a "${nombreIngresado}". Por favor verifica si digitaste un número mal o corrígelo para continuar.`,
+        });
+      }
+    }
+
+    // 3. Validación DIAN para NIT/RUT de terceros
+    if (isNit) {
+      if (!/^\d{8,11}$/.test(cleanDoc)) {
+        return res.status(200).json({
+          valid: false,
+          match: false,
+          error: 'El NIT debe contener entre 8 y 10 dígitos numéricos (incluyendo dígito de verificación).'
+        });
+      }
+      const baseNit = cleanDoc.length === 10 ? cleanDoc.slice(0, 9) : (cleanDoc.length === 9 ? cleanDoc.slice(0, 8) : cleanDoc);
+      const dvCalculado = calcularDigitoVerificacionDIAN(baseNit);
+      if (cleanDoc.length >= 9) {
+        const dvIngresado = cleanDoc.slice(-1);
+        if (dvIngresado !== dvCalculado) {
+          return res.status(200).json({
+            valid: false,
+            match: false,
+            error: `Dígito de verificación DIAN incorrecto. Para el NIT ${baseNit}, el dígito oficial es -${dvCalculado}.`
+          });
+        }
+      }
+      return res.status(200).json({
+        valid: true,
+        match: true,
+        officialName: (nombreIngresado || '').trim() || cleanDoc,
+        message: `✓ NIT/RUT validado conforme a estructura DIAN (Dígito de verificación: ${dvCalculado})`
+      });
+    }
+
+    // 4. Reglas estructurales de Cédula de Ciudadanía colombiana
+    const isCedula = !isNit && (tDocLower.includes('cédula') || tDocLower.includes('cedula') || tDocLower === '' || tDocLower.includes('ciudadan'));
+    if (isCedula) {
+      if (!/^\d+$/.test(cleanDoc)) {
+        return res.status(200).json({
+          valid: false,
+          match: false,
+          error: 'La Cédula de Ciudadanía solo debe contener caracteres numéricos.'
+        });
+      }
+      if (cleanDoc.length === 9) {
+        return res.status(200).json({
+          valid: false,
+          match: false,
+          error: '⚠️ En Colombia no existen Cédulas de Ciudadanía de 9 dígitos. Verifica si omitiste o agregaste algún número.'
+        });
+      }
+      if (cleanDoc.length < 6 || cleanDoc.length > 10) {
+        return res.status(200).json({
+          valid: false,
+          match: false,
+          error: '⚠️ La Cédula de Ciudadanía en Colombia debe contener entre 6 y 8 dígitos (antiguas) o 10 dígitos (nuevas).'
+        });
+      }
+      if (cleanDoc.length === 10 && !cleanDoc.startsWith('1')) {
+        return res.status(200).json({
+          valid: false,
+          match: false,
+          error: '⚠️ Las Cédulas de Ciudadanía de 10 dígitos en Colombia deben iniciar por 1. Verifica el número digitado.'
         });
       }
     }
