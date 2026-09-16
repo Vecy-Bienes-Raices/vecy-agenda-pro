@@ -59,6 +59,13 @@ function AgendaForm() {
   const [clientIdentityError, setClientIdentityError] = useState(null);
   const [clientIdentityVerified, setClientIdentityVerified] = useState(false);
   const [clientIdentitySuccessMsg, setClientIdentitySuccessMsg] = useState(null);
+
+  // Estados de verificación para Acompañantes adicionales
+  const [validatingAcompIndex, setValidatingAcompIndex] = useState(null);
+  const [acompErrors, setAcompErrors] = useState({});
+  const [acompVerified, setAcompVerified] = useState({});
+  const [acompSuccessMsg, setAcompSuccessMsg] = useState({});
+
   const securityHint = "Validación de seguridad: Este número se coteja mediante herramientas de alta tecnología para su comprobación y verificación de datos veraces.";
 
   const normalizeCelular = (raw) => {
@@ -320,6 +327,57 @@ function AgendaForm() {
     }
   };
 
+  const handleVerifyAcompananteIdentity = async (index, nombreIngresado, numeroDocumento) => {
+    const cleanDoc = (numeroDocumento || '').replace(/[^0-9a-zA-Z]/g, '');
+    if (!cleanDoc || cleanDoc.length < 5) return;
+
+    setValidatingAcompIndex(index);
+    setAcompErrors(prev => ({ ...prev, [index]: null }));
+    try {
+      const data = await runVerificationJob(
+        'Cédula de ciudadanía',
+        cleanDoc,
+        nombreIngresado,
+        (msg) => setAcompSuccessMsg(prev => ({ ...prev, [index]: msg }))
+      );
+
+      if (!data || data.valid === false || data.match === false) {
+        const errMsg = data?.error || `⚠️ El número de documento ${cleanDoc} del acompañante no corresponde a los nombres y apellidos indicados. Por favor verifica el documento o corrige los nombres para que coincidan con la persona que asistirá.`;
+        setAcompErrors(prev => ({ ...prev, [index]: errMsg }));
+        setAcompVerified(prev => ({ ...prev, [index]: false }));
+        setAcompSuccessMsg(prev => ({ ...prev, [index]: null }));
+        setFormErrors(prev => ({ ...prev, [`acomp_${index}_documento`]: true }));
+      } else {
+        setAcompErrors(prev => {
+          const updated = { ...prev };
+          delete updated[index];
+          return updated;
+        });
+        setAcompVerified(prev => ({ ...prev, [index]: true }));
+        setAcompSuccessMsg(prev => ({ ...prev, [index]: data.message || '✓ Documento verificado con éxito' }));
+        setFormErrors(prev => {
+          const updated = { ...prev };
+          delete updated[`acomp_${index}_documento`];
+          return updated;
+        });
+
+        if (data.officialName && data.officialName.toLowerCase() !== (nombreIngresado || '').trim().toLowerCase()) {
+          setFormData(prev => {
+            const updated = [...prev.acompanantes];
+            if (updated[index]) {
+              updated[index] = { ...updated[index], nombre: data.officialName };
+            }
+            return { ...prev, acompanantes: updated };
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Error verificando acompañante:', err);
+    } finally {
+      setValidatingAcompIndex(null);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     const rawValue = type === 'checkbox' ? checked : value;
@@ -339,6 +397,15 @@ function AgendaForm() {
       if (identityError) {
         setIdentityError(null);
       }
+    }
+
+    if (name === 'solicitante_numero_documento' || name === 'solicitante_nombre') {
+      if (identityError) setIdentityError(null);
+      if (identitySuccessMsg) setIdentitySuccessMsg(null);
+    }
+    if (name === 'interesado_documento' || name === 'interesado_nombre') {
+      if (clientIdentityError) setClientIdentityError(null);
+      if (clientIdentitySuccessMsg) setClientIdentitySuccessMsg(null);
     }
 
     setFormData(prev => {
@@ -409,6 +476,12 @@ function AgendaForm() {
       delete updated[errorKey];
       return updated;
     });
+    if (acompErrors[index]) {
+      setAcompErrors(prev => ({ ...prev, [index]: null }));
+    }
+    if (acompSuccessMsg[index]) {
+      setAcompSuccessMsg(prev => ({ ...prev, [index]: null }));
+    }
     setError('');
 
     setFormData(prev => {
@@ -620,6 +693,11 @@ function AgendaForm() {
                 required
                 value={acomp.nombre}
                 onChange={(e) => handleAcompananteChange(i, 'nombre', e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, ''))}
+                onBlur={() => {
+                  if (acomp.documento && acomp.documento.length >= 5) {
+                    handleVerifyAcompananteIdentity(i, acomp.nombre, acomp.documento);
+                  }
+                }}
                 error={!!formErrors[`acomp_${i}_nombre`]}
               />
               <FormInput
@@ -633,7 +711,15 @@ function AgendaForm() {
                 maxLength="15"
                 value={acomp.documento}
                 onChange={(e) => handleAcompananteChange(i, 'documento', e.target.value.replace(/\D/g, ''))}
-                error={!!formErrors[`acomp_${i}_documento`]}
+                onBlur={() => {
+                  if (acomp.documento && acomp.documento.length >= 5) {
+                    handleVerifyAcompananteIdentity(i, acomp.nombre, acomp.documento);
+                  }
+                }}
+                error={!!formErrors[`acomp_${i}_documento`] || !!acompErrors[i]}
+                errorAlert={acompErrors[i]}
+                successBadge={acompSuccessMsg[i]}
+                isValidating={validatingAcompIndex === i}
                 hint={securityHint}
               />
               <CustomSelect
@@ -877,15 +963,22 @@ function AgendaForm() {
             <div className="mt-8">
               <button 
                 type="submit" 
-                disabled={isSubmitting || !!identityError} 
+                disabled={isSubmitting || isValidatingDoc || isValidatingClientDoc || validatingAcompIndex !== null || !!identityError || (showAgentSections && !!clientIdentityError) || Object.values(acompErrors).some(Boolean)} 
                 className={`w-full font-bold py-4 px-4 rounded-lg transition-all duration-300 shadow-lg flex items-center justify-center disabled:cursor-not-allowed ${
-                  identityError 
+                  (identityError || (showAgentSections && clientIdentityError) || Object.values(acompErrors).some(Boolean))
                     ? 'bg-red-950/80 border-2 border-red-500/70 text-red-300 cursor-not-allowed shadow-[0_0_20px_rgba(239,68,68,0.3)]' 
                     : 'bg-soft-gold hover:bg-gold-bright text-volcanic-black hover:shadow-luminous-gold disabled:opacity-50 btn-pulse-gold'
                 }`}
               >
-                {isSubmitting ? <Spinner /> : null}
-                {isSubmitting ? 'Enviando...' : (identityError ? '⚠️ Bloqueado: Corrige el documento para agendar' : 'Enviar Solicitud')}
+                {isSubmitting ? (
+                  <span className="flex items-center justify-center"><Spinner /> Enviando...</span>
+                ) : (isValidatingDoc || isValidatingClientDoc || validatingAcompIndex !== null) ? (
+                  <span className="flex items-center justify-center"><Spinner /> Validando autenticidad en tiempo real...</span>
+                ) : (identityError || (showAgentSections && clientIdentityError) || Object.values(acompErrors).some(Boolean)) ? (
+                  '⚠️ Bloqueado: Corrige el documento para agendar'
+                ) : (
+                  'Enviar Solicitud'
+                )}
               </button>
             </div>
             {error && (<div className="mt-4 text-center text-red-400 bg-red-900/50 p-3 rounded-lg">{error}</div>)}
