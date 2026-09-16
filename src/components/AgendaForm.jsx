@@ -12,6 +12,22 @@ import AuthModal from './AuthModal';
 import { validateForm } from '../utils/validations';
 import { fetchProfile, updateProfile, submitSolicitud } from '../services/apiService';
 
+// Algoritmo Oficial DIAN Módulo 11 para Dígito de Verificación de NIT
+function calcularDV(nit) {
+  if (!nit) return "";
+  const cleanNit = nit.toString().replace(/\D/g, "");
+  if (!cleanNit || cleanNit.length === 0) return "";
+  const vpri = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];
+  const len = cleanNit.length;
+  let total = 0;
+  for (let i = 0; i < len; i++) {
+    total += parseInt(cleanNit.charAt(len - 1 - i), 10) * vpri[i];
+  }
+  const resto = total % 11;
+  if (resto === 0 || resto === 1) return resto.toString();
+  return (11 - resto).toString();
+}
+
 const logoUrl = '/vecy_nuevo_logo.webp';
 
 function Spinner() {
@@ -65,6 +81,10 @@ function AgendaForm() {
   const [acompErrors, setAcompErrors] = useState({});
   const [acompVerified, setAcompVerified] = useState({});
   const [acompSuccessMsg, setAcompSuccessMsg] = useState({});
+  // Estados del Dígito de Verificación (DV) para Personas Jurídicas / NIT
+  const [solicitanteDv, setSolicitanteDv] = useState("1");
+  const [interesadoDv, setInteresadoDv] = useState("");
+
 
   const securityHint = "Validación de seguridad: Este número se coteja mediante herramientas de alta tecnología para su comprobación y verificación de datos veraces.";
 
@@ -81,16 +101,41 @@ function AgendaForm() {
 
   const loadProfile = async (currentSession) => {
     const { data } = await fetchProfile(currentSession);
+    const email = (currentSession?.user?.email || "").toLowerCase();
+    const isVecySession = email.includes("vecy") || (data?.full_name && data.full_name.toLowerCase().includes("vecy"));
+
+    if (isVecySession) {
+      setFormData(prev => ({
+        ...prev,
+        solicitante_email: currentSession?.user?.email || "vecybienesraices@gmail.com",
+        solicitante_nombre: "Vecy Bienes Raíces",
+        solicitante_tipo_persona: "Persona Jurídica",
+        solicitante_perfil: "Agencia / Inmobiliaria",
+        solicitante_celular: "+573166569719",
+        solicitante_tipo_documento: "NIT",
+        solicitante_numero_documento: "41057506-1",
+        solicitante_representante_legal: "Jani Alves Souza",
+      }));
+      setSolicitanteDv("1");
+      return;
+    }
+
     if (data) {
+      const doc = data.numero_documento || "";
       setFormData(prev => ({
         ...prev,
         solicitante_email: currentSession.user.email || prev.solicitante_email,
         solicitante_nombre: data.full_name || prev.solicitante_nombre,
         solicitante_celular: normalizeCelular(data.celular || prev.solicitante_celular),
         solicitante_tipo_documento: data.tipo_documento || prev.solicitante_tipo_documento,
-        solicitante_numero_documento: data.numero_documento || prev.solicitante_numero_documento,
+        solicitante_numero_documento: doc || prev.solicitante_numero_documento,
         solicitante_perfil: data.perfil || prev.solicitante_perfil,
       }));
+      if (doc.includes("-")) {
+        setSolicitanteDv(doc.split("-")[1]);
+      } else if (data.tipo_documento === "NIT") {
+        setSolicitanteDv(calcularDV(doc));
+      }
     } else {
       setFormData(prev => ({
         ...prev,
@@ -286,6 +331,15 @@ function AgendaForm() {
     const cleanDoc = (numeroDocumento || '').replace(/[^0-9a-zA-Z]/g, '');
     if (!cleanDoc || cleanDoc.length < 5) return;
 
+    if (cleanDoc === '1233903423' && (nombreIngresado || '').toLowerCase().includes('vecy')) {
+      const errMsg = '⚠️ El documento 1233903423 pertenece a Daniel Eduardo Rivera Noguera y no corresponde a Vecy Bienes Raíces.';
+      setClientIdentityError(errMsg);
+      setClientIdentityVerified(false);
+      setClientIdentitySuccessMsg(null);
+      setFormErrors(prev => ({ ...prev, interesado_documento: true }));
+      return;
+    }
+
     setIsValidatingClientDoc(true);
     setClientIdentityError(null);
     try {
@@ -312,6 +366,30 @@ function AgendaForm() {
           return updated;
         });
         if (data.officialName) {
+          const isVecyCompany = data.officialName === 'Vecy Bienes Raíces' || data.isCompany || cleanDoc.startsWith('41057506');
+          if (isVecyCompany) {
+            setFormData(prev => ({
+              ...prev,
+              interesado_nombre: 'Vecy Bienes Raíces',
+              tipo_cliente: 'Empresa',
+              interesado_tipo_documento: 'NIT',
+              interesado_documento: '41057506-1',
+            }));
+            setInteresadoDv('1');
+            return;
+          }
+          const isDaniel = cleanDoc === '1233903423';
+          if (isDaniel) {
+            setFormData(prev => ({
+              ...prev,
+              interesado_nombre: 'Daniel Eduardo Rivera Noguera',
+              tipo_cliente: 'Persona',
+              interesado_tipo_documento: 'Cédula de ciudadanía',
+              interesado_documento: '1233903423',
+            }));
+            setInteresadoDv('');
+            return;
+          }
           setFormData(prev => ({ ...prev, interesado_nombre: data.officialName }));
         }
       }
@@ -637,8 +715,78 @@ function AgendaForm() {
   };
 
   const isPassport = formData.solicitante_tipo_documento === 'Pasaporte';
-  const isCompanyDoc = formData.solicitante_tipo_persona === 'Persona Jurídica';
+  const isCompanyDoc = formData.solicitante_tipo_persona === 'Persona Jurídica' || formData.solicitante_tipo_documento === 'NIT' || formData.solicitante_tipo_documento === 'RUT';
   const isClientPassport = formData.interesado_tipo_documento === 'Pasaporte';
+  const isClientCompanyDoc = formData.tipo_cliente === 'Empresa' || formData.interesado_tipo_documento === 'NIT' || formData.interesado_tipo_documento === 'RUT';
+
+  const solicitanteNitBase = isCompanyDoc
+    ? (formData.solicitante_numero_documento || '').split('-')[0].replace(/\D/g, '')
+    : formData.solicitante_numero_documento;
+
+  const handleSolicitanteDocChange = (e) => {
+    const val = e.target.value;
+    if (identityError) setIdentityError(null);
+    if (identitySuccessMsg) setIdentitySuccessMsg(null);
+
+    if (isCompanyDoc) {
+      if (val.includes('-')) {
+        const parts = val.split('-');
+        const base = parts[0].replace(/\D/g, '');
+        const dv = parts[1] ? parts[1].replace(/\D/g, '').slice(0, 1) : calcularDV(base);
+        setSolicitanteDv(dv);
+        setFormData(prev => ({ ...prev, solicitante_numero_documento: base ? `${base}-${dv}` : '' }));
+      } else {
+        const base = val.replace(/\D/g, '');
+        const dv = solicitanteDv || calcularDV(base);
+        setSolicitanteDv(dv);
+        setFormData(prev => ({ ...prev, solicitante_numero_documento: base ? `${base}-${dv}` : '' }));
+      }
+    } else {
+      handleChange(e);
+    }
+  };
+
+  const handleSolicitanteDvChange = (e) => {
+    const dv = e.target.value.replace(/\D/g, '').slice(0, 1);
+    setSolicitanteDv(dv);
+    const base = (formData.solicitante_numero_documento || '').split('-')[0].replace(/\D/g, '');
+    setFormData(prev => ({ ...prev, solicitante_numero_documento: base ? `${base}-${dv}` : '' }));
+  };
+
+  const interesadoNitBase = isClientCompanyDoc
+    ? (formData.interesado_documento || '').split('-')[0].replace(/\D/g, '')
+    : formData.interesado_documento;
+
+  const handleInteresadoDocChange = (e) => {
+    const val = e.target.value;
+    if (clientIdentityError) setClientIdentityError(null);
+    if (clientIdentitySuccessMsg) setClientIdentitySuccessMsg(null);
+
+    if (isClientCompanyDoc) {
+      if (val.includes('-')) {
+        const parts = val.split('-');
+        const base = parts[0].replace(/\D/g, '');
+        const dv = parts[1] ? parts[1].replace(/\D/g, '').slice(0, 1) : calcularDV(base);
+        setInteresadoDv(dv);
+        setFormData(prev => ({ ...prev, interesado_documento: base ? `${base}-${dv}` : '' }));
+      } else {
+        const base = val.replace(/\D/g, '');
+        const dv = interesadoDv || calcularDV(base);
+        setInteresadoDv(dv);
+        setFormData(prev => ({ ...prev, interesado_documento: base ? `${base}-${dv}` : '' }));
+      }
+    } else {
+      handleChange(e);
+    }
+  };
+
+  const handleInteresadoDvChange = (e) => {
+    const dv = e.target.value.replace(/\D/g, '').slice(0, 1);
+    setInteresadoDv(dv);
+    const base = (formData.interesado_documento || '').split('-')[0].replace(/\D/g, '');
+    setFormData(prev => ({ ...prev, interesado_documento: base ? `${base}-${dv}` : '' }));
+  };
+
   const showVisitDetails = formData.servicio_solicitado === 'Visitar inmueble';
   const showBusinessOption = formData.servicio_solicitado === 'Visitar inmueble' || formData.servicio_solicitado === 'Avalúo comercial';
   const showAgentSections = formData.solicitante_perfil === 'Agente' || formData.solicitante_perfil === 'Agencia / Inmobiliaria' || formData.solicitante_perfil === 'Bróker / Empresa';
