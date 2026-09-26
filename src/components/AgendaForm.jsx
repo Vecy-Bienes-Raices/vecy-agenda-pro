@@ -9,7 +9,7 @@ const SignaturePadComponent = React.lazy(() => import('./SignaturePad'));
 import CustomDateTimePicker from './CustomDateTimePicker';
 import CustomSelect from './CustomSelect';
 import AuthModal from './AuthModal';
-import { validateForm } from '../utils/validations';
+import { validateForm, formatTitleCase } from '../utils/validations';
 import { fetchProfile, updateProfile, submitSolicitud } from '../services/apiService';
 
 // Algoritmo Oficial DIAN Módulo 11 para Dígito de Verificación de NIT
@@ -322,6 +322,12 @@ function AgendaForm() {
   };
 
   const handleNameBlur = () => {
+    if (formData.solicitante_nombre && formData.solicitante_tipo_persona === "Persona Natural") {
+      const clean = formData.solicitante_nombre.trim();
+      if (clean.length >= 3) {
+        setFormData(prev => ({ ...prev, solicitante_nombre: formatTitleCase(clean) }));
+      }
+    }
     if (formData.solicitante_numero_documento && formData.solicitante_numero_documento.length >= 5) {
       handleVerifyIdentity(formData.solicitante_nombre, formData.solicitante_numero_documento, formData.solicitante_tipo_documento);
     }
@@ -407,6 +413,12 @@ function AgendaForm() {
   };
 
   const handleClientNameBlur = () => {
+    if (formData.interesado_nombre && formData.tipo_cliente === "Persona") {
+      const clean = formData.interesado_nombre.trim();
+      if (clean.length >= 3) {
+        setFormData(prev => ({ ...prev, interesado_nombre: formatTitleCase(clean) }));
+      }
+    }
     if (formData.interesado_documento && formData.interesado_documento.length >= 5) {
       handleVerifyClientIdentity(formData.interesado_nombre, formData.interesado_documento, formData.interesado_tipo_documento);
     }
@@ -849,6 +861,12 @@ function AgendaForm() {
                 value={acomp.nombre}
                 onChange={(e) => handleAcompananteChange(i, 'nombre', e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, ''))}
                 onBlur={() => {
+                  if (acomp.nombre) {
+                    const cleanA = acomp.nombre.trim();
+                    if (cleanA.length >= 3) {
+                      handleAcompananteChange(i, "nombre", formatTitleCase(cleanA));
+                    }
+                  }
                   if (acomp.documento && acomp.documento.length >= 5) {
                     handleVerifyAcompananteIdentity(i, acomp.nombre, acomp.documento);
                   }
