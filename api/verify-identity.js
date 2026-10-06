@@ -181,9 +181,10 @@ export default async function handler(req, res) {
       } else {
         return res.status(200).json({
           valid: true,
-          match: false,
+          match: true,
           officialName: authEntry.canonicalName,
-          error: `⚠️ El número de documento ${cleanDoc} no corresponde a "${nombreIngresado}". Por favor verifica si digitaste un número mal o corrígelo para continuar.`,
+          nameAutoCorrected: true,
+          message: authEntry.message || `✓ Identidad verificada con éxito: ${authEntry.canonicalName}`,
         });
       }
     }

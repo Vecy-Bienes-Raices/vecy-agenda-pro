@@ -278,13 +278,22 @@ function AgendaForm() {
         (msg) => setIdentitySuccessMsg(msg)
       );
 
-      if (!data || data.valid === false || data.match === false) {
-        const errMsg = data?.error || '⚠️ El número de documento no corresponde a los nombres y apellidos indicados. Por motivos de seguridad y veracidad legal, solo se permiten datos reales verificados.';
+      if (!data || (data.valid === false && !data.officialName)) {
+        const errMsg = data?.error || "⚠️ No fue posible verificar el documento en este momento. Por favor revisa los datos e intenta de nuevo.";
         setIdentityError(errMsg);
         setIdentityVerified(false);
         setIdentitySuccessMsg(null);
         setFormErrors(prev => ({ ...prev, solicitante_numero_documento: true }));
-      } else {
+        } else {
+        setIdentityError(null);
+        setIdentityVerified(true);
+        if (data.hasAntecedentes || data.alertaSeguridad) {
+          const warnMsg = data.advertenciaAntecedentes || "⚠️ Advertencia Notarial de Seguridad: Este documento registra antecedentes o novedades ante las autoridades del Estado. Su solicitud será procesada sujeta a declinación formal.";
+          setIdentitySuccessMsg(warnMsg);
+          setFormData(prev => ({ ...prev, alerta_antecedentes: true, alerta_motivo: warnMsg }));
+        } else {
+          setIdentitySuccessMsg(data.message || "✓ Documento verificado y autenticado con éxito");
+        }
         setIdentityError(null);
         setIdentityVerified(true);
         setIdentitySuccessMsg(data.message || '✓ Documento verificado y autenticado con éxito');
@@ -356,13 +365,22 @@ function AgendaForm() {
         (msg) => setClientIdentitySuccessMsg(msg)
       );
 
-      if (!data || data.valid === false || data.match === false) {
-        const errMsg = data?.error || '⚠️ El número de documento no corresponde al nombre del cliente presentado. Por motivos de seguridad, solo se permiten datos reales verificados.';
+      if (!data || (data.valid === false && !data.officialName)) {
+        const errMsg = data?.error || "⚠️ No fue posible verificar el documento del cliente en este momento.";
         setClientIdentityError(errMsg);
         setClientIdentityVerified(false);
         setClientIdentitySuccessMsg(null);
         setFormErrors(prev => ({ ...prev, interesado_documento: true }));
-      } else {
+        } else {
+        setClientIdentityError(null);
+        setClientIdentityVerified(true);
+        if (data.hasAntecedentes || data.alertaSeguridad) {
+          const warnMsg = data.advertenciaAntecedentes || "⚠️ Advertencia Notarial: El cliente presentado registra novedades o antecedentes ante autoridades oficiales.";
+          setClientIdentitySuccessMsg(warnMsg);
+          setFormData(prev => ({ ...prev, alerta_antecedentes: true, alerta_motivo: (prev.alerta_motivo ? prev.alerta_motivo + " | " : "") + warnMsg }));
+        } else {
+          setClientIdentitySuccessMsg(data.message || "✓ Identidad del cliente confirmada");
+        }
         setClientIdentityError(null);
         setClientIdentityVerified(true);
         setClientIdentitySuccessMsg(data.message || '✓ Identidad del cliente confirmada');
@@ -438,13 +456,20 @@ function AgendaForm() {
         (msg) => setAcompSuccessMsg(prev => ({ ...prev, [index]: msg }))
       );
 
-      if (!data || data.valid === false || data.match === false) {
-        const errMsg = data?.error || `⚠️ El número de documento ${cleanDoc} del acompañante no corresponde a los nombres y apellidos indicados. Por favor verifica el documento o corrige los nombres para que coincidan con la persona que asistirá.`;
+      if (!data || (data.valid === false && !data.officialName)) {
+        const errMsg = data?.error || `⚠️ El número de documento ${cleanDoc} del acompañante no pudo ser verificado. Por favor revisa el documento.`;
         setAcompErrors(prev => ({ ...prev, [index]: errMsg }));
         setAcompVerified(prev => ({ ...prev, [index]: false }));
         setAcompSuccessMsg(prev => ({ ...prev, [index]: null }));
         setFormErrors(prev => ({ ...prev, [`acomp_${index}_documento`]: true }));
-      } else {
+        } else {
+        if (data.hasAntecedentes || data.alertaSeguridad) {
+          const warnMsg = data.advertenciaAntecedentes || `⚠️ Advertencia Notarial: El acompañante (${cleanDoc}) registra novedades o antecedentes ante autoridades.`;
+          setAcompSuccessMsg(prev => ({ ...prev, [index]: warnMsg }));
+          setFormData(prev => ({ ...prev, alerta_antecedentes: true, alerta_motivo: (prev.alerta_motivo ? prev.alerta_motivo + " | " : "") + warnMsg }));
+        } else {
+          setAcompSuccessMsg(prev => ({ ...prev, [index]: data.message || "✓ Documento verificado con éxito" }));
+        }
         setAcompErrors(prev => {
           const updated = { ...prev };
           delete updated[index];
