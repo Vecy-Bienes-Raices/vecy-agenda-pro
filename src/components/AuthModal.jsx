@@ -30,7 +30,7 @@ const AuthModal = ({ isOpen, onClose }) => {
         try {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider,
-                options: { redirectTo: `${window.location.origin}/formulario` },
+                options: { redirectTo: window.location.href },
             });
             if (error) throw error;
         } catch (err) {
@@ -63,7 +63,7 @@ const AuthModal = ({ isOpen, onClose }) => {
                     email,
                     password,
                     options: { 
-                        emailRedirectTo: `${window.location.origin}/formulario`,
+                        emailRedirectTo: window.location.href,
                         data: { full_name: fullName }
                     },
                 });
@@ -109,7 +109,7 @@ const AuthModal = ({ isOpen, onClose }) => {
         setError('');
         try {
             const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/formulario`,
+                redirectTo: window.location.href,
             });
             if (error) throw error;
             setSuccessMsg(`📧 Enviamos un enlace de recuperación a ${email}.`);
